@@ -1,0 +1,160 @@
+/* Clean Light Sidebar */
+.sidebar {
+  width: 250px;
+  background-color: #ffffff;
+  color: #334155;
+  position: fixed;
+  inset: 0 auto 0 0;
+  display: flex;
+  flex-direction: column;
+  padding: 18px 12px 14px;
+  z-index: 50;
+  overflow-y: auto;
+  border-right: 1px solid #e2e8f0;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  transition: transform 0.22s ease;
+}
+
+.sidebar::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 8px 20px;
+  border-bottom: 1px solid #f1f5f9;
+  margin-bottom: 16px;
+}
+
+.brand-logo {
+  width: 38px;
+  height: 38px;
+  border-radius: 8px;
+  background: #e0f2fe;
+  display: grid;
+  place-items: center;
+  color: #0284c7;
+  flex-shrink: 0;
+}
+
+.brand b {
+  font-size: 16px;
+  font-weight: 700;
+  color: #0f172a;
+  letter-spacing: -0.3px;
+  display: block;
+}
+
+.brand small {
+  display: block;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  color: #0284c7;
+}
+
+.workspace-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.8px;
+  color: #94a3b8;
+  padding: 0 10px 8px;
+  text-transform: uppercase;
+}
+
+.nav-list {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.nav-item {
+  height: 40px;
+  padding: 0 12px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #475569;
+  font-size: 13px;
+  font-weight: 500;
+  text-decoration: none;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.nav-item:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.nav-item.selected {
+  background: #e0f2fe;
+  color: #0284c7;
+  font-weight: 600;
+}
+
+.nav-item.selected svg {
+  color: #0284c7;
+}
+
+.nav-item span {
+  flex: 1;
+}
+
+.nav-alert {
+  background-color: #fef3c7;
+  color: #92400e;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 10px;
+  min-width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  padding: 0 6px;
+}
+
+.nav-role-badge {
+  background: #f1f5f9;
+  color: #64748b;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.sidebar-bottom {
+  margin-top: auto;
+  padding-top: 14px;
+  border-top: 1px solid #f1f5f9;
+}
+
+.sidebar-version-tag {
+  font-size: 11px;
+  color: #94a3b8;
+  padding: 8px 8px 0;
+  letter-spacing: 0.3px;
+}
+
+.menu-toggle-btn {
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: background-color 0.15s ease;
+  background: transparent;
+  border: 1px solid #e2e8f0;
+  color: #475569;
+  width: 36px;
+  height: 36px;
+}
+
+.menu-toggle-btn:hover {
+  background: #f8fafc;
+  color: #0284c7;
+}

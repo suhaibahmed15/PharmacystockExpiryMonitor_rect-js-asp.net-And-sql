@@ -1,0 +1,10 @@
+/* PharmaCare Stock & Expiry Monitor - Master Stylesheet */
+@import "./styles/variables.css";
+@import "./styles/layout.css";
+@import "./styles/sidebar.css";
+@import "./styles/topbar.css";
+@import "./styles/dashboard.css";
+@import "./styles/tables.css";
+@import "./styles/components.css";
+@import "./styles/login.css";
+@import "./styles/responsive.css";
