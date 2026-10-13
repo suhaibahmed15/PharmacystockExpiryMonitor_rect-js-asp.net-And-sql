@@ -1,4 +1,4 @@
-﻿namespace PharmacyStockExpiryMonitor.Api.DTOs.Batch
+namespace PharmacyStockExpiryMonitor.Api.DTOs.Batch
 {
     public class BatchDto
     {
@@ -19,5 +19,13 @@
         public int RemainingQuantity { get; set; }
 
         public decimal UnitCost { get; set; }
+
+        public DateTime CreatedAt { get; set; }
+
+        public string? CreatedBy { get; set; }
+
+        public DateTime? UpdatedAt { get; set; }
+
+        public string? UpdatedBy { get; set; }
     }
 }

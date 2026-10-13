@@ -1,51 +1,35 @@
 import React, { useEffect, useState } from "react";
 import {
-  Pill,
-  Plus,
-  Search,
-  Filter,
-  AlertTriangle,
-  Edit2,
-  Trash2,
-  X,
-  Boxes,
-  CheckCircle,
-  XCircle,
-  RefreshCw,
-  ChevronLeft,
-  ChevronRight
-} from "lucide-react";
-import { useNavigate } from "react-router-dom";
-import {
-  getMedicines,
-  createMedicine,
-  updateMedicine,
-  deleteMedicine,
-  getCategories,
-  errorMessage
-} from "../api";
+  getMedicinesApi,
+  createMedicineApi,
+  updateMedicineApi,
+  deleteMedicineApi,
+  getCategoriesApi,
+  getErrorMessage
+} from "../services/api";
 import Pagination from "../components/Pagination";
+import "../styles/Medicines.css";
 
-export default function MedicinesPage({ onSetToast }) {
-  const navigate = useNavigate();
+export default function MedicinesPage() {
   const [medicines, setMedicines] = useState([]);
   const [categories, setCategories] = useState([]);
-  const [totalCount, setTotalCount] = useState(0);
-  const [totalPages, setTotalPages] = useState(1);
-  const [page, setPage] = useState(1);
-  const pageSize = 10;
-
-  const [search, setSearch] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("");
-  const [selectedStatus, setSelectedStatus] = useState("");
-  const [sortBy, setSortBy] = useState("name");
-  const [sortDirection, setSortDirection] = useState("asc");
-
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
-  const [modal, setModal] = useState(null); // { mode: 'create' | 'edit', item?: any }
-  const [form, setForm] = useState({
+  // Pagination, Search, and Filters
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState(""); // "" | "true" | "false"
+  const [categoryFilter, setCategoryFilter] = useState("");
+
+  // Form State
+  const [showForm, setShowForm] = useState(false);
+  const [editId, setEditId] = useState(null);
+  const [formData, setFormData] = useState({
     medicineCode: "",
     name: "",
     genericName: "",
@@ -54,44 +38,37 @@ export default function MedicinesPage({ onSetToast }) {
     reorderLevel: 20,
     isActive: true
   });
-  const [saving, setSaving] = useState(false);
 
-  // Load Categories for dropdown
-  async function loadCategories() {
+  const loadCategories = async () => {
     try {
-      const res = await getCategories({ page: 1, pageSize: 100 });
-      setCategories(res.data);
-    } catch (e) {
-      console.error("Could not load categories", e);
+      const res = await getCategoriesApi({ page: 1, pageSize: 100 });
+      setCategories(res.data.items || res.data || []);
+    } catch {
+      // Ignore if category fetch fails
     }
-  }
+  };
 
-  // Load Medicines
-  async function loadMedicines() {
+  const loadMedicines = async () => {
     setLoading(true);
     setError("");
     try {
-      const params = new URLSearchParams({
-        page: page.toString(),
-        pageSize: pageSize.toString(),
-        sortBy,
-        sortDirection
-      });
-
-      if (search.trim()) params.append("search", search.trim());
-      if (selectedCategory) params.append("categoryId", selectedCategory);
-      if (selectedStatus !== "") params.append("isActive", selectedStatus);
-
-      const res = await getMedicines(params);
-      setMedicines(res.data);
-      setTotalCount(res.raw.data?.totalCount ?? res.data.length);
-      setTotalPages(res.raw.data?.totalPages ?? Math.ceil((res.raw.data?.totalCount || 1) / pageSize));
+      const params = {
+        page,
+        pageSize,
+        search: search.trim() || undefined,
+        isActive: statusFilter !== "" ? statusFilter === "true" : undefined,
+        categoryId: categoryFilter ? Number(categoryFilter) : undefined
+      };
+      const res = await getMedicinesApi(params);
+      setMedicines(res.data.items || []);
+      setTotalPages(res.data.totalPages || 1);
+      setTotalCount(res.data.totalCount ?? res.data.totalItems ?? ((res.data.totalPages || 1) * pageSize));
     } catch (err) {
-      setError(errorMessage(err));
+      setError(getErrorMessage(err));
     } finally {
       setLoading(false);
     }
-  }
+  };
 
   useEffect(() => {
     loadCategories();
@@ -99,137 +76,149 @@ export default function MedicinesPage({ onSetToast }) {
 
   useEffect(() => {
     loadMedicines();
-  }, [page, search, selectedCategory, selectedStatus, sortBy, sortDirection]);
+  }, [page, pageSize, search, statusFilter, categoryFilter]);
 
-  function openCreate() {
-    setForm({
-      medicineCode: `MED-0${Math.floor(100 + Math.random() * 900)}`,
+  const handleSearchSubmit = (e) => {
+    e.preventDefault();
+    setPage(1);
+    loadMedicines();
+  };
+
+  const handleResetForm = () => {
+    setFormData({
+      medicineCode: "",
       name: "",
       genericName: "",
       description: "",
-      categoryId: categories[0]?.id?.toString() || "",
+      categoryId: categories[0]?.id || "",
       reorderLevel: 20,
       isActive: true
     });
-    setModal({ mode: "create" });
-  }
+    setEditId(null);
+    setShowForm(false);
+  };
 
-  function openEdit(item) {
-    setForm({
-      medicineCode: item.medicineCode || "",
-      name: item.name || "",
+  const handleOpenAdd = () => {
+    setFormData({
+      medicineCode: `MED-${Math.floor(100 + Math.random() * 900)}`,
+      name: "",
+      genericName: "",
+      description: "",
+      categoryId: categories[0]?.id || "",
+      reorderLevel: 20,
+      isActive: true
+    });
+    setEditId(null);
+    setShowForm(true);
+    setError("");
+    setSuccess("");
+  };
+
+  const handleOpenEdit = (item) => {
+    setFormData({
+      medicineCode: item.medicineCode,
+      name: item.name,
       genericName: item.genericName || "",
       description: item.description || "",
-      categoryId: item.categoryId?.toString() || "",
-      reorderLevel: item.reorderLevel || 20,
-      isActive: item.isActive !== false
+      categoryId: item.categoryId,
+      reorderLevel: item.reorderLevel,
+      isActive: item.isActive
     });
-    setModal({ mode: "edit", item });
-  }
+    setEditId(item.id);
+    setShowForm(true);
+    setError("");
+    setSuccess("");
+  };
 
-  async function handleSave(e) {
+  const handleFormSubmit = async (e) => {
     e.preventDefault();
-    if (!form.categoryId) {
-      onSetToast("Please select a Category.");
+    setError("");
+    setSuccess("");
+
+    if (!formData.name || !formData.medicineCode || !formData.categoryId) {
+      setError("Please fill in Medicine Code, Name, and Category.");
       return;
     }
-    setSaving(true);
-    try {
-      const payload = {
-        medicineCode: form.medicineCode.trim(),
-        name: form.name.trim(),
-        genericName: form.genericName.trim() || null,
-        description: form.description.trim() || null,
-        categoryId: parseInt(form.categoryId, 10),
-        reorderLevel: parseInt(form.reorderLevel, 10) || 0
-      };
 
-      if (modal.mode === "edit") {
-        payload.isActive = form.isActive;
-        await updateMedicine(modal.item.id, payload);
-        onSetToast(`Medicine '${form.name}' updated successfully.`);
+    try {
+      if (editId) {
+        await updateMedicineApi(editId, {
+          ...formData,
+          categoryId: Number(formData.categoryId),
+          reorderLevel: Number(formData.reorderLevel)
+        });
+        setSuccess("Medicine updated successfully.");
       } else {
-        await createMedicine(payload);
-        onSetToast(`Medicine '${form.name}' created successfully.`);
+        await createMedicineApi({
+          medicineCode: formData.medicineCode,
+          name: formData.name,
+          genericName: formData.genericName,
+          description: formData.description,
+          categoryId: Number(formData.categoryId),
+          reorderLevel: Number(formData.reorderLevel)
+        });
+        setSuccess("Medicine added successfully.");
       }
-      setModal(null);
+      handleResetForm();
       loadMedicines();
     } catch (err) {
-      setError(errorMessage(err));
-    } finally {
-      setSaving(false);
+      setError(getErrorMessage(err));
     }
-  }
+  };
 
-  async function handleDelete(item) {
-    if (!window.confirm(`Are you sure you want to delete '${item.name}'?`)) return;
+  const handleDelete = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this medicine?")) {
+      return;
+    }
+    setError("");
+    setSuccess("");
     try {
-      await deleteMedicine(item.id);
-      onSetToast(`Medicine '${item.name}' deleted.`);
+      await deleteMedicineApi(id);
+      setSuccess("Medicine deleted successfully.");
       loadMedicines();
     } catch (err) {
-      setError(errorMessage(err));
+      setError(getErrorMessage(err));
     }
-  }
+  };
 
   return (
-    <div className="page-content">
-      <div className="page-heading">
-        <div>
-          <div className="eyebrow">
-            <span>CATALOGUE DIRECTORY</span>
-            <span className="eyebrow-line" />
-          </div>
-          <h1>Medicine Inventory</h1>
-          <p>
-            Manage pharmacy catalogue, active pharmaceutical formulations, classification, and safety reorder thresholds.
-          </p>
-        </div>
-        <div className="heading-actions">
-          <button className="btn btn-light" onClick={loadMedicines}>
-            <RefreshCw size={15} /> Refresh
-          </button>
-          <button className="btn btn-primary" onClick={openCreate}>
-            <Plus size={16} /> Add Medicine
-          </button>
-        </div>
-      </div>
+    <div className="container">
+      <h1>Medicine Management</h1>
 
-      {error && (
-        <div className="error-banner">
-          <AlertTriangle size={18} />
-          <span>{error}</span>
-          <button onClick={loadMedicines}>Retry</button>
-        </div>
-      )}
+      {error && <div className="message-error">{error}</div>}
+      {success && <div className="message-success">{success}</div>}
 
-      {/* Filter and Search Bar */}
-      <div className="filter-bar">
-        <div className="search-input-wrap">
-          <Search size={16} />
+      <div className="top-action-bar">
+        <form onSubmit={handleSearchSubmit} className="search-box">
           <input
             type="text"
-            placeholder="Search medicine name, generic formula or code..."
+            placeholder="Search by name or code..."
             value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setPage(1);
-            }}
+            onChange={(e) => setSearch(e.target.value)}
           />
-          {search && (
-            <button className="clear-btn" onClick={() => setSearch("")}>
-              <X size={14} />
-            </button>
-          )}
-        </div>
 
-        <div className="filter-group">
+          {/* Active / Inactive Dropdown */}
           <select
-            value={selectedCategory}
+            value={statusFilter}
             onChange={(e) => {
-              setSelectedCategory(e.target.value);
+              setStatusFilter(e.target.value);
               setPage(1);
             }}
+            style={{ padding: "6px 8px", border: "1px solid #ccc", borderRadius: "3px" }}
+          >
+            <option value="">All Statuses</option>
+            <option value="true">Active Only</option>
+            <option value="false">Inactive Only</option>
+          </select>
+
+          {/* Category Dropdown Filter */}
+          <select
+            value={categoryFilter}
+            onChange={(e) => {
+              setCategoryFilter(e.target.value);
+              setPage(1);
+            }}
+            style={{ padding: "6px 8px", border: "1px solid #ccc", borderRadius: "3px" }}
           >
             <option value="">All Categories</option>
             {categories.map((c) => (
@@ -239,244 +228,224 @@ export default function MedicinesPage({ onSetToast }) {
             ))}
           </select>
 
-          <select
-            value={selectedStatus}
-            onChange={(e) => {
-              setSelectedStatus(e.target.value);
-              setPage(1);
-            }}
-          >
-            <option value="">All Statuses</option>
-            <option value="true">Active Only</option>
-            <option value="false">Inactive Only</option>
-          </select>
+          <button type="submit" className="btn-secondary">
+            Filter
+          </button>
+          {(search || statusFilter || categoryFilter) && (
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => {
+                setSearch("");
+                setStatusFilter("");
+                setCategoryFilter("");
+                setPage(1);
+              }}
+            >
+              Reset
+            </button>
+          )}
+        </form>
 
-          <select
-            value={sortBy}
-            onChange={(e) => {
-              setSortBy(e.target.value);
-              setPage(1);
-            }}
-          >
-            <option value="name">Sort by Name</option>
-            <option value="medicineCode">Sort by Code</option>
-            <option value="reorderLevel">Sort by Reorder Level</option>
-          </select>
-        </div>
+        <button className="btn-primary" onClick={handleOpenAdd}>
+          {showForm && !editId ? "Close Form" : "+ Add New Medicine"}
+        </button>
       </div>
 
-      {/* Main Table */}
-      <section className="panel table-panel">
-        <div className="panel-head">
-          <div className="table-caption">
-            <b>{totalCount}</b> registered medicine records found
-          </div>
-        </div>
+      {/* Add / Edit Form */}
+      {showForm && (
+        <form className="simple-form" onSubmit={handleFormSubmit}>
+          <h3>{editId ? "Edit Medicine" : "Add New Medicine"}</h3>
 
-        <div className="table-responsive">
-          <table>
+          <div className="form-row">
+            <div className="form-group">
+              <label>Medicine Code *</label>
+              <input
+                type="text"
+                value={formData.medicineCode}
+                onChange={(e) =>
+                  setFormData({ ...formData, medicineCode: e.target.value })
+                }
+                required
+              />
+            </div>
+            <div className="form-group">
+              <label>Medicine Name *</label>
+              <input
+                type="text"
+                value={formData.name}
+                onChange={(e) =>
+                  setFormData({ ...formData, name: e.target.value })
+                }
+                required
+              />
+            </div>
+          </div>
+
+          <div className="form-row">
+            <div className="form-group">
+              <label>Generic Name</label>
+              <input
+                type="text"
+                value={formData.genericName}
+                onChange={(e) =>
+                  setFormData({ ...formData, genericName: e.target.value })
+                }
+              />
+            </div>
+            <div className="form-group">
+              <label>Category *</label>
+              <select
+                value={formData.categoryId}
+                onChange={(e) =>
+                  setFormData({ ...formData, categoryId: e.target.value })
+                }
+                required
+              >
+                <option value="">-- Select Category --</option>
+                {categories.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="form-row">
+            <div className="form-group">
+              <label>Reorder Safety Threshold (Min Stock)</label>
+              <input
+                type="number"
+                min="0"
+                value={formData.reorderLevel}
+                onChange={(e) =>
+                  setFormData({ ...formData, reorderLevel: e.target.value })
+                }
+                required
+              />
+            </div>
+            <div className="form-group">
+              <label>Description</label>
+              <input
+                type="text"
+                value={formData.description}
+                onChange={(e) =>
+                  setFormData({ ...formData, description: e.target.value })
+                }
+              />
+            </div>
+          </div>
+
+          {editId && (
+            <div className="form-group">
+              <label>
+                <input
+                  type="checkbox"
+                  checked={formData.isActive}
+                  onChange={(e) =>
+                    setFormData({ ...formData, isActive: e.target.checked })
+                  }
+                  style={{ width: "auto", marginRight: "8px" }}
+                />
+                Active Medicine
+              </label>
+            </div>
+          )}
+
+          <div style={{ marginTop: "10px" }}>
+            <button type="submit" className="btn-primary" style={{ marginRight: "10px" }}>
+              {editId ? "Update Medicine" : "Save Medicine"}
+            </button>
+            <button type="button" className="btn-secondary" onClick={handleResetForm}>
+              Cancel
+            </button>
+          </div>
+        </form>
+      )}
+
+      {/* Medicines Table */}
+      {loading ? (
+        <p>Loading medicines...</p>
+      ) : (
+        <div className="table-container">
+          <table className="simple-table">
             <thead>
               <tr>
-                <th>CODE</th>
-                <th>MEDICINE & FORMULA</th>
-                <th>CATEGORY</th>
-                <th>CURRENT STOCK</th>
-                <th>REORDER LVL</th>
-                <th>STATUS</th>
-                <th className="text-right">ACTIONS</th>
+                <th>ID</th>
+                <th>Code</th>
+                <th>Name</th>
+                <th>Generic Name</th>
+                <th>Category</th>
+                <th>Current Stock</th>
+                <th>Reorder Level</th>
+                <th>Status</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {medicines.map((m) => {
-                const isLow = Number(m.currentStock || 0) <= Number(m.reorderLevel || 0);
-                return (
-                  <tr key={m.id}>
-                    <td>
-                      <span className="code-badge">{m.medicineCode}</span>
-                    </td>
-                    <td>
-                      <div className="item-primary-text">{m.name}</div>
-                      {m.genericName && (
-                        <div className="item-sub-text">{m.genericName}</div>
-                      )}
-                    </td>
-                    <td>
-                      <span className="category-tag">{m.categoryName || "General"}</span>
-                    </td>
-                    <td>
-                      <span className={`stock-number ${isLow ? "text-danger font-bold" : ""}`}>
-                        {m.currentStock || 0}
-                      </span>{" "}
-                      units
-                      {isLow && <span className="low-tag">Low</span>}
-                    </td>
-                    <td>{m.reorderLevel} units</td>
-                    <td>
-                      <span
-                        className={`status-pill ${m.isActive ? "good" : "muted"}`}
-                      >
-                        <i />
-                        {m.isActive ? "Active" : "Inactive"}
-                      </span>
-                    </td>
-                    <td className="text-right">
-                      <div className="action-buttons-group">
-                        <button
-                          className="icon-btn edit-btn"
-                          title="Edit Medicine"
-                          onClick={() => openEdit(m)}
-                        >
-                          <Edit2 size={15} />
-                        </button>
-                        <button
-                          className="icon-btn delete-btn"
-                          title="Delete Medicine"
-                          onClick={() => handleDelete(m)}
-                        >
-                          <Trash2 size={15} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-              {medicines.length === 0 && !loading && (
+              {medicines.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="empty-table-cell">
-                    <Pill size={32} />
-                    <p>No medicines matched your query or filters.</p>
+                  <td colSpan="9" style={{ textAlign: "center" }}>
+                    No medicines found.
                   </td>
                 </tr>
+              ) : (
+                medicines.map((med) => {
+                  const isLow = Number(med.currentStock) <= Number(med.reorderLevel);
+                  return (
+                    <tr key={med.id}>
+                      <td>{med.id}</td>
+                      <td>{med.medicineCode}</td>
+                      <td>
+                        <strong>{med.name}</strong>
+                      </td>
+                      <td>{med.genericName || "-"}</td>
+                      <td>{med.categoryName || med.categoryId}</td>
+                      <td className={isLow ? "stock-low" : "stock-normal"}>
+                        {med.currentStock} {isLow && "(Low Stock)"}
+                      </td>
+                      <td>{med.reorderLevel}</td>
+                      <td>
+                        {med.isActive ? (
+                          <span style={{ color: "green", fontWeight: "bold" }}>Active</span>
+                        ) : (
+                          <span style={{ color: "gray", fontWeight: "bold" }}>Inactive</span>
+                        )}
+                      </td>
+                      <td>
+                        <button
+                          className="btn-secondary btn-small"
+                          onClick={() => handleOpenEdit(med)}
+                        >
+                          Edit
+                        </button>
+                        <button
+                          className="btn-danger btn-small"
+                          onClick={() => handleDelete(med.id)}
+                        >
+                          Delete
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
-        </div>
 
-        {/* Pagination */}
-        <Pagination
-          page={page}
-          pageSize={pageSize}
-          totalCount={totalCount}
-          onPageChange={setPage}
-        />
-      </section>
-
-      {/* Modal: Create / Edit Medicine */}
-      {modal && (
-        <div className="modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && setModal(null)}>
-          <div className="record-modal">
-            <div className="modal-head">
-              <div>
-                <span className="eyebrow">MEDICINE CATALOGUE</span>
-                <h2>{modal.mode === "edit" ? "Edit Medicine" : "Add New Medicine"}</h2>
-              </div>
-              <button className="icon-btn" onClick={() => setModal(null)}>
-                <X size={18} />
-              </button>
-            </div>
-
-            <form onSubmit={handleSave}>
-              <div className="form-grid">
-                <label className="form-field">
-                  <span>Medicine Code *</span>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. MED-010"
-                    value={form.medicineCode}
-                    onChange={(e) => setForm({ ...form, medicineCode: e.target.value })}
-                  />
-                </label>
-
-                <label className="form-field">
-                  <span>Medicine Name *</span>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. Amoxicillin 500mg"
-                    value={form.name}
-                    onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  />
-                </label>
-
-                <label className="form-field">
-                  <span>Generic Formulation</span>
-                  <input
-                    type="text"
-                    placeholder="e.g. Amoxicillin Trihydrate"
-                    value={form.genericName}
-                    onChange={(e) => setForm({ ...form, genericName: e.target.value })}
-                  />
-                </label>
-
-                <label className="form-field">
-                  <span>Category *</span>
-                  <select
-                    required
-                    value={form.categoryId}
-                    onChange={(e) => setForm({ ...form, categoryId: e.target.value })}
-                  >
-                    <option value="">Select Category</option>
-                    {categories.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-
-                <label className="form-field">
-                  <span>Reorder Alert Level *</span>
-                  <input
-                    type="number"
-                    min="0"
-                    required
-                    placeholder="e.g. 20"
-                    value={form.reorderLevel}
-                    onChange={(e) => setForm({ ...form, reorderLevel: e.target.value })}
-                  />
-                </label>
-
-                {modal.mode === "edit" && (
-                  <label className="check-field" style={{ alignSelf: "center", marginTop: "22px" }}>
-                    <input
-                      type="checkbox"
-                      checked={form.isActive}
-                      onChange={(e) => setForm({ ...form, isActive: e.target.checked })}
-                    />
-                    <span>Active in Pharmacy System</span>
-                  </label>
-                )}
-              </div>
-
-              <label className="form-field" style={{ marginTop: "14px" }}>
-                <span>Therapeutic Description / Usage Notes</span>
-                <textarea
-                  rows={3}
-                  placeholder="e.g. Broad spectrum antibiotic used for respiratory and urinary tract bacterial infections."
-                  value={form.description}
-                  onChange={(e) => setForm({ ...form, description: e.target.value })}
-                />
-              </label>
-
-              <div className="modal-actions">
-                <button
-                  type="button"
-                  className="btn btn-light"
-                  onClick={() => setModal(null)}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="btn btn-primary"
-                  disabled={saving}
-                >
-                  {saving ? "Saving..." : modal.mode === "edit" ? "Save Changes" : "Create Medicine"}
-                </button>
-              </div>
-            </form>
-          </div>
+          {/* Pagination */}
+          <Pagination
+            page={page}
+            pageSize={pageSize}
+            totalCount={totalCount || totalPages * pageSize}
+            onPageChange={(p) => setPage(p)}
+            onPageSizeChange={(sz) => {
+              setPageSize(sz);
+              setPage(1);
+            }}
+            pageSizeOptions={[5, 10, 25, 50]}
+          />
         </div>
       )}
     </div>

@@ -1,199 +1,96 @@
 import React, { useState } from "react";
-import {
-  Pill,
-  Shield,
-  ShieldCheck,
-  Lock,
-  Mail,
-  User,
-  Package,
-  ArrowRight,
-  AlertTriangle
-} from "lucide-react";
-import { login, errorMessage, parseJwt } from "../api";
+import { loginApi, parseJwt, getErrorMessage } from "../services/api";
+import "../styles/Login.css";
 
-export default function LoginPage({ onLogin }) {
-  const [selectedRole, setSelectedRole] = useState("Admin");
-  const [email, setEmail] = useState("admin@pharmacy.com");
-  const [password, setPassword] = useState("Admin@123");
+export default function LoginPage({ onLoginSuccess }) {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const sampleRoles = [
-    {
-      id: "Admin",
-      label: "Admin",
-      email: "admin@pharmacy.com",
-      pass: "Admin@123",
-      icon: Shield,
-      desc: "Full system administration"
-    },
-    {
-      id: "StoreManager",
-      label: "Store Manager",
-      email: "manager@pharmacy.com",
-      pass: "Manager@123",
-      icon: Package,
-      desc: "Inventory and procurement"
-    },
-    {
-      id: "Pharmacist",
-      label: "Pharmacist",
-      email: "pharmacist@pharmacy.com",
-      pass: "Pharmacist@123",
-      icon: Pill,
-      desc: "Dispensing and batch monitoring"
-    }
-  ];
-
-  function handleSelectRole(roleItem) {
-    setSelectedRole(roleItem.id);
-    setEmail(roleItem.email);
-    setPassword(roleItem.pass);
-    setError("");
-  }
-
-  async function handleSubmit(e) {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!email.trim() || !password) {
+      setError("Please enter both email and password.");
+      return;
+    }
+
     setLoading(true);
     setError("");
 
     try {
-      const data = await login({
-        email: email.trim(),
-        password: password
-      });
-      const token = data.token || data.accessToken || data.jwt;
+      const response = await loginApi({ email: email.trim(), password });
+      const data = response.data;
+      const token = data?.token;
 
       if (!token) {
-        throw new Error(
-          "The API response did not contain a valid JWT authorization token."
-        );
+        throw new Error("No token returned by the server.");
       }
 
-      // Decode JWT payload for roles
+      // Decode user role and information dynamically from JWT token
       const decoded = parseJwt(token);
       const roleClaim =
         decoded?.["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] ||
         decoded?.role ||
-        selectedRole;
+        data?.role ||
+        "User";
 
       const userObj = {
-        id: data.userId || data.id,
-        fullName:
-          data.fullName ||
-          (selectedRole === "StoreManager"
-            ? "Store Manager"
-            : selectedRole === "Pharmacist"
-            ? "Lead Pharmacist"
-            : "System Administrator"),
-        email: data.email || email,
+        userId: data?.userId || decoded?.nameid || decoded?.sub,
+        email: data?.email || email.trim(),
+        fullName: data?.fullName || decoded?.unique_name || email.trim().split("@")[0],
         role: Array.isArray(roleClaim) ? roleClaim[0] : roleClaim
       };
 
-      onLogin(token, userObj);
+      onLoginSuccess(token, userObj);
     } catch (err) {
-      setError(errorMessage(err));
+      setError(getErrorMessage(err));
     } finally {
       setLoading(false);
     }
-  }
+  };
 
   return (
-    <div className="login-page-container">
-      <div className="login-card-wrapper">
-        {/* Brand Header */}
-        <div className="login-header">
-          <div className="brand-badge">
-            <Pill size={22} strokeWidth={2.5} />
-          </div>
-          <h1>PharmaCare</h1>
-          <p className="subtitle">Stock & Expiry Management System</p>
-        </div>
+    <div className="login-container">
+      <div className="login-box">
+        <h1>Pharmacy Stock & Expiry Monitor</h1>
+        <p className="subtitle">Sign in to your account</p>
 
-        {/* Card Body */}
-        <div className="login-card">
-          <div className="login-card-title">
-            <h2>Sign In</h2>
-            <p>Select a quick-fill role or enter your credentials</p>
-          </div>
+        {error && <div className="message-error">{error}</div>}
 
-          {/* Quick Role Fill Selector */}
-          <div className="role-selector-group">
-            <span className="role-selector-label">Role Quick-Fill:</span>
-            <div className="role-buttons">
-              {sampleRoles.map((r) => {
-                const Icon = r.icon;
-                const isSelected = selectedRole === r.id && email === r.email;
-                return (
-                  <button
-                    key={r.id}
-                    type="button"
-                    className={`role-chip ${isSelected ? "active" : ""}`}
-                    onClick={() => handleSelectRole(r)}
-                    title={r.desc}
-                  >
-                    <Icon size={14} />
-                    <span>{r.label}</span>
-                  </button>
-                );
-              })}
-            </div>
+        <form onSubmit={handleSubmit}>
+          <div className="form-group">
+            <label>Email Address:</label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="Enter your email"
+              required
+              autoFocus
+            />
           </div>
 
-          {error && (
-            <div className="error-banner">
-              <AlertTriangle size={16} />
-              <span>{error}</span>
-            </div>
-          )}
+          <div className="form-group">
+            <label>Password:</label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Enter your password"
+              required
+            />
+          </div>
 
-          <form onSubmit={handleSubmit} className="login-form">
-            <label className="form-field">
-              <span>Email Address</span>
-              <div className="input-with-icon">
-                <Mail size={16} />
-                <input
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="name@pharmacy.com"
-                  autoComplete="username"
-                />
-              </div>
-            </label>
-
-            <label className="form-field">
-              <span>Password</span>
-              <div className="input-with-icon">
-                <Lock size={16} />
-                <input
-                  type="password"
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter password"
-                  autoComplete="current-password"
-                />
-              </div>
-            </label>
-
-            <button
-              type="submit"
-              className="btn btn-primary login-btn"
-              disabled={loading}
-            >
-              {loading ? "Authenticating..." : "Sign In"}
-              <ArrowRight size={16} />
-            </button>
-          </form>
-        </div>
-
-        {/* Footer */}
-        <div className="login-copyright">
-          <span>© {new Date().getFullYear()} PharmaCare. All rights reserved.</span>
-        </div>
+          <button
+            type="submit"
+            className="btn-primary"
+            style={{ width: "100%", marginTop: "14px" }}
+            disabled={loading}
+          >
+            {loading ? "Signing in..." : "Sign In"}
+          </button>
+        </form>
       </div>
     </div>
   );

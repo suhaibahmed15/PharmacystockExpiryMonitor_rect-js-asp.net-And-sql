@@ -1,5 +1,4 @@
 import React from "react";
-import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
 
 export default function Pagination({
   page = 1,
@@ -60,7 +59,7 @@ export default function Pagination({
           title="First Page"
           aria-label="First Page"
         >
-          <ChevronsLeft size={14} />
+          «
         </button>
 
         <button
@@ -70,7 +69,7 @@ export default function Pagination({
           title="Previous Page"
           aria-label="Previous Page"
         >
-          <ChevronLeft size={14} />
+          ‹
         </button>
 
         {pageNumbers[0] > 1 && (
@@ -116,7 +115,7 @@ export default function Pagination({
           title="Next Page"
           aria-label="Next Page"
         >
-          <ChevronRight size={14} />
+          ›
         </button>
 
         <button
@@ -126,7 +125,7 @@ export default function Pagination({
           title="Last Page"
           aria-label="Last Page"
         >
-          <ChevronsRight size={14} />
+          »
         </button>
       </div>
     </div>

@@ -1,533 +1,371 @@
 import React, { useEffect, useState } from "react";
 import {
-  Boxes,
-  Plus,
-  Search,
-  CalendarClock,
-  AlertTriangle,
-  AlertOctagon,
-  CheckCircle2,
-  Edit2,
-  Trash2,
-  X,
-  RefreshCw,
-  Clock,
-  DollarSign
-} from "lucide-react";
-import {
-  getBatches,
-  createBatch,
-  updateBatch,
-  deleteBatch,
-  getMedicines,
-  errorMessage
-} from "../api";
+  getBatchesApi,
+  createBatchApi,
+  updateBatchApi,
+  deleteBatchApi,
+  getMedicinesApi,
+  getErrorMessage
+} from "../services/api";
 import Pagination from "../components/Pagination";
+import "../styles/Batches.css";
 
-export default function BatchesPage({ onSetToast }) {
+export default function BatchesPage() {
   const [batches, setBatches] = useState([]);
   const [medicines, setMedicines] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
-  const [search, setSearch] = useState("");
-  const [expiryFilter, setExpiryFilter] = useState("all"); // 'all' | 'expired' | 'critical' | 'warning' | 'safe'
-  const [selectedMedicine, setSelectedMedicine] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
-  const [modal, setModal] = useState(null); // { mode: 'create' | 'edit', item?: any }
-  const [form, setForm] = useState({
+  const [showForm, setShowForm] = useState(false);
+  const [editId, setEditId] = useState(null);
+  const [formData, setFormData] = useState({
     medicineId: "",
     batchNumber: "",
     manufacturingDate: "",
     expiryDate: "",
     initialQuantity: 100,
-    unitCost: 150
+    unitCost: 10.0
   });
-  const [saving, setSaving] = useState(false);
 
-  async function loadMedicines() {
-    try {
-      const res = await getMedicines({ page: 1, pageSize: 100 });
-      setMedicines(res.data);
-    } catch (e) {
-      console.error(e);
-    }
-  }
-
-  async function loadBatches() {
+  const loadData = async () => {
     setLoading(true);
     setError("");
     try {
-      const res = await getBatches();
-      setBatches(res.data);
+      const [batchRes, medRes] = await Promise.all([
+        getBatchesApi(),
+        getMedicinesApi({ page: 1, pageSize: 100 })
+      ]);
+      setBatches(batchRes.data || []);
+      setMedicines(medRes.data.items || medRes.data || []);
     } catch (err) {
-      setError(errorMessage(err));
+      setError(getErrorMessage(err));
     } finally {
       setLoading(false);
     }
-  }
+  };
 
   useEffect(() => {
-    loadMedicines();
-    loadBatches();
+    loadData();
   }, []);
 
-  const now = new Date();
-
-  function getDaysUntilExpiry(expiryDate) {
-    if (!expiryDate) return 0;
-    return Math.ceil((new Date(expiryDate) - now) / (1000 * 60 * 60 * 24));
-  }
-
-  function getExpiryStatus(expiryDate) {
-    const days = getDaysUntilExpiry(expiryDate);
-    if (days < 0) return { label: "EXPIRED", cls: "status-danger", days };
-    if (days <= 30) return { label: `CRITICAL (${days}d)`, cls: "status-danger", days };
-    if (days <= 90) return { label: `WARNING (${days}d)`, cls: "status-warning", days };
-    return { label: `SAFE (${days}d)`, cls: "status-safe", days };
-  }
-
-  // Filter batches
-  const filteredBatches = batches.filter((b) => {
-    const days = getDaysUntilExpiry(b.expiryDate);
-    const matchesSearch =
-      (b.batchNumber || "").toLowerCase().includes(search.toLowerCase()) ||
-      (b.medicineName || "").toLowerCase().includes(search.toLowerCase());
-
-    const matchesMedicine =
-      !selectedMedicine || b.medicineId?.toString() === selectedMedicine;
-
-    if (!matchesSearch || !matchesMedicine) return false;
-
-    if (expiryFilter === "expired") return days < 0;
-    if (expiryFilter === "critical") return days >= 0 && days <= 30;
-    if (expiryFilter === "warning") return days > 30 && days <= 90;
-    if (expiryFilter === "safe") return days > 90;
-    return true;
-  });
-
-  // Calculate metrics
-  const expiredCount = batches.filter((b) => getDaysUntilExpiry(b.expiryDate) < 0).length;
-  const criticalCount = batches.filter((b) => {
-    const d = getDaysUntilExpiry(b.expiryDate);
-    return d >= 0 && d <= 30;
-  }).length;
-  const warningCount = batches.filter((b) => {
-    const d = getDaysUntilExpiry(b.expiryDate);
-    return d > 30 && d <= 90;
-  }).length;
-  const safeCount = batches.filter((b) => getDaysUntilExpiry(b.expiryDate) > 90).length;
-
-  function openCreate() {
-    const today = new Date().toISOString().split("T")[0];
-    const nextYear = new Date(Date.now() + 365 * 86400000).toISOString().split("T")[0];
-    setForm({
-      medicineId: medicines[0]?.id?.toString() || "",
-      batchNumber: `B-${Math.floor(20000 + Math.random() * 80000)}`,
-      manufacturingDate: today,
-      expiryDate: nextYear,
+  const handleOpenAdd = () => {
+    setFormData({
+      medicineId: medicines[0]?.id || "",
+      batchNumber: `BAT-${Math.floor(1000 + Math.random() * 9000)}`,
+      manufacturingDate: new Date().toISOString().split("T")[0],
+      expiryDate: new Date(Date.now() + 180 * 24 * 60 * 60 * 1000)
+        .toISOString()
+        .split("T")[0],
       initialQuantity: 100,
-      unitCost: 250
+      unitCost: 15.0
     });
-    setModal({ mode: "create" });
-  }
+    setEditId(null);
+    setShowForm(true);
+    setError("");
+    setSuccess("");
+  };
 
-  function openEdit(item) {
-    setForm({
-      medicineId: item.medicineId?.toString() || "",
-      batchNumber: item.batchNumber || "",
-      manufacturingDate: item.manufacturingDate?.split("T")[0] || "",
-      expiryDate: item.expiryDate?.split("T")[0] || "",
-      initialQuantity: item.initialQuantity || 0,
-      unitCost: item.unitCost || 0
+  const handleOpenEdit = (item) => {
+    setFormData({
+      medicineId: item.medicineId,
+      batchNumber: item.batchNumber,
+      manufacturingDate: item.manufacturingDate
+        ? item.manufacturingDate.split("T")[0]
+        : "",
+      expiryDate: item.expiryDate ? item.expiryDate.split("T")[0] : "",
+      initialQuantity: item.initialQuantity || item.remainingQuantity,
+      unitCost: item.unitCost
     });
-    setModal({ mode: "edit", item });
-  }
+    setEditId(item.id);
+    setShowForm(true);
+    setError("");
+    setSuccess("");
+  };
 
-  async function handleSave(e) {
+  const handleFormSubmit = async (e) => {
     e.preventDefault();
-    if (!form.medicineId && modal.mode === "create") {
-      onSetToast("Please select a Medicine.");
+    if (!formData.batchNumber || !formData.expiryDate) {
+      setError("Please fill in Batch Number and Expiry Date.");
       return;
     }
-    setSaving(true);
+
     try {
-      if (modal.mode === "edit") {
-        const payload = {
-          batchNumber: form.batchNumber.trim(),
-          manufacturingDate: new Date(form.manufacturingDate).toISOString(),
-          expiryDate: new Date(form.expiryDate).toISOString(),
-          unitCost: parseFloat(form.unitCost) || 0
-        };
-        await updateBatch(modal.item.id, payload);
-        onSetToast(`Batch '${form.batchNumber}' updated successfully.`);
+      if (editId) {
+        await updateBatchApi(editId, {
+          batchNumber: formData.batchNumber,
+          manufacturingDate: formData.manufacturingDate,
+          expiryDate: formData.expiryDate,
+          unitCost: Number(formData.unitCost)
+        });
+        setSuccess("Batch updated successfully.");
       } else {
-        const payload = {
-          medicineId: parseInt(form.medicineId, 10),
-          batchNumber: form.batchNumber.trim(),
-          manufacturingDate: new Date(form.manufacturingDate).toISOString(),
-          expiryDate: new Date(form.expiryDate).toISOString(),
-          initialQuantity: parseInt(form.initialQuantity, 10) || 1,
-          unitCost: parseFloat(form.unitCost) || 0
-        };
-        await createBatch(payload);
-        onSetToast(`Batch '${form.batchNumber}' created successfully.`);
+        await createBatchApi({
+          medicineId: Number(formData.medicineId),
+          batchNumber: formData.batchNumber,
+          manufacturingDate: formData.manufacturingDate,
+          expiryDate: formData.expiryDate,
+          initialQuantity: Number(formData.initialQuantity),
+          unitCost: Number(formData.unitCost)
+        });
+        setSuccess("Batch created successfully.");
       }
-      setModal(null);
-      loadBatches();
+      setShowForm(false);
+      setEditId(null);
+      loadData();
     } catch (err) {
-      setError(errorMessage(err));
-    } finally {
-      setSaving(false);
+      setError(getErrorMessage(err));
     }
-  }
+  };
 
-  async function handleDelete(item) {
-    if (!window.confirm(`Delete batch record '${item.batchNumber}'?`)) return;
+  const handleDelete = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this batch?")) return;
+    setError("");
+    setSuccess("");
     try {
-      await deleteBatch(item.id);
-      onSetToast(`Batch '${item.batchNumber}' removed.`);
-      loadBatches();
+      await deleteBatchApi(id);
+      setSuccess("Batch deleted successfully.");
+      loadData();
     } catch (err) {
-      setError(errorMessage(err));
+      setError(getErrorMessage(err));
     }
-  }
+  };
 
-  const formatPKR = (v) =>
-    new Intl.NumberFormat("en-PK", {
-      style: "currency",
-      currency: "PKR",
-      maximumFractionDigits: 0
-    }).format(Number(v || 0));
+  // Helper to determine expiry status
+  const getExpiryStatus = (expiryDate) => {
+    if (!expiryDate) return { text: "Unknown", className: "" };
+    const now = new Date();
+    const exp = new Date(expiryDate);
+    const diffDays = Math.ceil((exp - now) / (1000 * 60 * 60 * 24));
+
+    if (diffDays <= 0) {
+      return { text: "Expired", className: "text-expired" };
+    } else if (diffDays <= 90) {
+      return {
+        text: `Expiring Soon (${diffDays} days left)`,
+        className: "text-near-expiry"
+      };
+    } else {
+      return { text: `Safe (${diffDays} days left)`, className: "text-safe" };
+    }
+  };
 
   return (
-    <div className="page-content">
-      <div className="page-heading">
-        <div>
-          <div className="eyebrow">
-            <span>EXPIRY RISK AUDIT</span>
-            <span className="eyebrow-line" />
-          </div>
-          <h1>Batches & Shelf-Life Monitor</h1>
-          <p>
-            Track lot production batches, expiration timetables, unit valuations, and enforce First-Expiry-First-Out dispensing.
-          </p>
-        </div>
-        <div className="heading-actions">
-          <button className="btn btn-light" onClick={loadBatches}>
-            <RefreshCw size={15} /> Refresh
-          </button>
-          <button className="btn btn-primary" onClick={openCreate}>
-            <Plus size={16} /> New Batch Lot
-          </button>
-        </div>
+    <div className="container">
+      <h1>Batch Management</h1>
+
+      {error && <div className="message-error">{error}</div>}
+      {success && <div className="message-success">{success}</div>}
+
+      <div className="batch-top-bar">
+        <p style={{ margin: 0, fontSize: "13px", color: "#666" }}>
+          Track pharmaceutical manufacturing lots, stock expiry dates, and unit costs.
+        </p>
+        <button className="btn-primary" onClick={handleOpenAdd}>
+          {showForm && !editId ? "Close Form" : "+ Add Batch"}
+        </button>
       </div>
 
-      {error && (
-        <div className="error-banner">
-          <AlertTriangle size={18} />
-          <span>{error}</span>
-          <button onClick={loadBatches}>Retry</button>
-        </div>
+      {showForm && (
+        <form className="simple-form" onSubmit={handleFormSubmit}>
+          <h3>{editId ? "Edit Batch" : "Add New Batch"}</h3>
+          <div className="form-row">
+            {!editId && (
+              <div className="form-group">
+                <label>Medicine *</label>
+                <select
+                  value={formData.medicineId}
+                  onChange={(e) =>
+                    setFormData({ ...formData, medicineId: e.target.value })
+                  }
+                  required
+                >
+                  <option value="">-- Select Medicine --</option>
+                  {medicines.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.name} ({m.medicineCode})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+            <div className="form-group">
+              <label>Batch Number *</label>
+              <input
+                type="text"
+                value={formData.batchNumber}
+                onChange={(e) =>
+                  setFormData({ ...formData, batchNumber: e.target.value })
+                }
+                required
+              />
+            </div>
+          </div>
+
+          <div className="form-row">
+            <div className="form-group">
+              <label>Manufacturing Date *</label>
+              <input
+                type="date"
+                value={formData.manufacturingDate}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    manufacturingDate: e.target.value
+                  })
+                }
+                required
+              />
+            </div>
+            <div className="form-group">
+              <label>Expiry Date *</label>
+              <input
+                type="date"
+                value={formData.expiryDate}
+                onChange={(e) =>
+                  setFormData({ ...formData, expiryDate: e.target.value })
+                }
+                required
+              />
+            </div>
+          </div>
+
+          <div className="form-row">
+            {!editId && (
+              <div className="form-group">
+                <label>Initial Quantity *</label>
+                <input
+                  type="number"
+                  min="1"
+                  value={formData.initialQuantity}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      initialQuantity: e.target.value
+                    })
+                  }
+                  required
+                />
+              </div>
+            )}
+            <div className="form-group">
+              <label>Unit Cost (PKR) *</label>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                value={formData.unitCost}
+                onChange={(e) =>
+                  setFormData({ ...formData, unitCost: e.target.value })
+                }
+                required
+              />
+            </div>
+          </div>
+
+          <div>
+            <button type="submit" className="btn-primary" style={{ marginRight: "10px" }}>
+              {editId ? "Update Batch" : "Save Batch"}
+            </button>
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => setShowForm(false)}
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
       )}
 
-      {/* Expiry Risk Filter Ribbons */}
-      <div className="expiry-risk-ribbon">
-        <div
-          className={`ribbon-card all ${expiryFilter === "all" ? "active" : ""}`}
-          onClick={() => { setExpiryFilter("all"); setPage(1); }}
-        >
-          <div className="ribbon-val">{batches.length}</div>
-          <div className="ribbon-lbl">Total Batches</div>
-        </div>
-
-        <div
-          className={`ribbon-card danger ${expiryFilter === "expired" ? "active" : ""}`}
-          onClick={() => { setExpiryFilter("expired"); setPage(1); }}
-        >
-          <div className="ribbon-val text-danger">{expiredCount}</div>
-          <div className="ribbon-lbl">Expired Lots</div>
-        </div>
-
-        <div
-          className={`ribbon-card critical ${expiryFilter === "critical" ? "active" : ""}`}
-          onClick={() => { setExpiryFilter("critical"); setPage(1); }}
-        >
-          <div className="ribbon-val text-urgent">{criticalCount}</div>
-          <div className="ribbon-lbl">Critical (&lt;30 Days)</div>
-        </div>
-
-        <div
-          className={`ribbon-card warning ${expiryFilter === "warning" ? "active" : ""}`}
-          onClick={() => { setExpiryFilter("warning"); setPage(1); }}
-        >
-          <div className="ribbon-val text-warning">{warningCount}</div>
-          <div className="ribbon-lbl">Approaching (&lt;90 Days)</div>
-        </div>
-
-        <div
-          className={`ribbon-card safe ${expiryFilter === "safe" ? "active" : ""}`}
-          onClick={() => { setExpiryFilter("safe"); setPage(1); }}
-        >
-          <div className="ribbon-val text-success">{safeCount}</div>
-          <div className="ribbon-lbl">Safe Shelf-Life</div>
-        </div>
-      </div>
-
-      {/* Search and Filters */}
-      <div className="filter-bar">
-        <div className="search-input-wrap">
-          <Search size={16} />
-          <input
-            type="text"
-            placeholder="Search by lot batch number or medicine name..."
-            value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-          />
-          {search && (
-            <button className="clear-btn" onClick={() => { setSearch(""); setPage(1); }}>
-              <X size={14} />
-            </button>
-          )}
-        </div>
-
-        <div className="filter-group">
-          <select
-            value={selectedMedicine}
-            onChange={(e) => { setSelectedMedicine(e.target.value); setPage(1); }}
-          >
-            <option value="">All Medicines</option>
-            {medicines.map((m) => (
-              <option key={m.id} value={m.id}>
-                {m.name} ({m.medicineCode})
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
-
-      {/* Batches Table */}
-      <section className="panel table-panel">
-        <div className="panel-head">
-          <div className="table-caption">
-            Showing <b>{filteredBatches.length}</b> batch lot records
-          </div>
-        </div>
-
-        <div className="table-responsive">
-          <table>
+      {loading ? (
+        <p>Loading batches...</p>
+      ) : (
+        <div className="table-container">
+          <table className="simple-table">
             <thead>
               <tr>
-                <th>BATCH #</th>
-                <th>PRODUCT MEDICINE</th>
-                <th>MFG. DATE</th>
-                <th>EXPIRY DATE</th>
-                <th>LOT STOCK</th>
-                <th>UNIT COST</th>
-                <th>SHELF-LIFE RISK</th>
-                <th className="text-right">ACTIONS</th>
+                <th>ID</th>
+                <th>Batch Number</th>
+                <th>Medicine Name</th>
+                <th>Manufacturing Date</th>
+                <th>Expiry Date</th>
+                <th>Expiry Status</th>
+                <th>Remaining Qty</th>
+                <th>Unit Cost</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {filteredBatches
-                .slice((page - 1) * pageSize, page * pageSize)
-                .map((b) => {
-                const status = getExpiryStatus(b.expiryDate);
-                const isDepleted = Number(b.remainingQuantity || 0) <= 0;
-
-                return (
-                  <tr key={b.id} className={status.days < 0 ? "row-expired" : ""}>
-                    <td>
-                      <span className="code-badge">{b.batchNumber}</span>
-                    </td>
-                    <td>
-                      <b>{b.medicineName || `Medicine #${b.medicineId}`}</b>
-                    </td>
-                    <td>{new Date(b.manufacturingDate).toLocaleDateString("en-GB")}</td>
-                    <td>
-                      <div className="date-cell">
-                        <Clock size={13} className="text-muted" />
-                        <span>{new Date(b.expiryDate).toLocaleDateString("en-GB")}</span>
-                      </div>
-                    </td>
-                    <td>
-                      <b>{b.remainingQuantity}</b> / {b.initialQuantity} units
-                      {isDepleted && <span className="depleted-tag">Depleted</span>}
-                    </td>
-                    <td>{formatPKR(b.unitCost)}</td>
-                    <td>
-                      <span className={`pill-status ${status.cls}`}>
-                        {status.label}
-                      </span>
-                    </td>
-                    <td className="text-right">
-                      <div className="action-buttons-group">
-                        <button
-                          className="icon-btn edit-btn"
-                          title="Edit Batch"
-                          onClick={() => openEdit(b)}
-                        >
-                          <Edit2 size={15} />
-                        </button>
-                        <button
-                          className="icon-btn delete-btn"
-                          title="Delete Batch"
-                          onClick={() => handleDelete(b)}
-                        >
-                          <Trash2 size={15} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-              {filteredBatches.length === 0 && !loading && (
+              {batches.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="empty-table-cell">
-                    <Boxes size={32} />
-                    <p>No batch records match the selected filters.</p>
+                  <td colSpan="9" style={{ textAlign: "center" }}>
+                    No batches found.
                   </td>
                 </tr>
+              ) : (
+                batches
+                  .slice((page - 1) * pageSize, page * pageSize)
+                  .map((b) => {
+                    const status = getExpiryStatus(b.expiryDate);
+                    return (
+                      <tr key={b.id}>
+                        <td>{b.id}</td>
+                        <td>
+                          <strong>{b.batchNumber}</strong>
+                        </td>
+                        <td>{b.medicineName || `Medicine #${b.medicineId}`}</td>
+                        <td>
+                          {b.manufacturingDate
+                            ? new Date(b.manufacturingDate).toLocaleDateString()
+                            : "-"}
+                        </td>
+                        <td>
+                          {b.expiryDate
+                            ? new Date(b.expiryDate).toLocaleDateString()
+                            : "-"}
+                        </td>
+                        <td className={status.className}>{status.text}</td>
+                        <td>
+                          <strong>{b.remainingQuantity}</strong>
+                        </td>
+                        <td>PKR {Number(b.unitCost).toFixed(2)}</td>
+                        <td>
+                          <button
+                            className="btn-secondary btn-small"
+                            onClick={() => handleOpenEdit(b)}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            className="btn-danger btn-small"
+                            onClick={() => handleDelete(b.id)}
+                          >
+                            Delete
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })
               )}
             </tbody>
           </table>
-        </div>
 
-        {/* Pagination */}
-        <Pagination
-          page={page}
-          pageSize={pageSize}
-          totalCount={filteredBatches.length}
-          onPageChange={setPage}
-          onPageSizeChange={(newSize) => {
-            setPageSize(newSize);
-            setPage(1);
-          }}
-        />
-      </section>
-
-      {/* Modal: Create / Edit Batch */}
-      {modal && (
-        <div className="modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && setModal(null)}>
-          <div className="record-modal">
-            <div className="modal-head">
-              <div>
-                <span className="eyebrow">BATCH INVENTORY LOT</span>
-                <h2>{modal.mode === "edit" ? "Edit Batch Lot" : "Receive New Batch Lot"}</h2>
-              </div>
-              <button className="icon-btn" onClick={() => setModal(null)}>
-                <X size={18} />
-              </button>
-            </div>
-
-            <form onSubmit={handleSave}>
-              <div className="form-grid">
-                {modal.mode === "create" ? (
-                  <label className="form-field">
-                    <span>Target Medicine *</span>
-                    <select
-                      required
-                      value={form.medicineId}
-                      onChange={(e) => setForm({ ...form, medicineId: e.target.value })}
-                    >
-                      <option value="">Select Medicine</option>
-                      {medicines.map((m) => (
-                        <option key={m.id} value={m.id}>
-                          {m.name} ({m.medicineCode})
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                ) : (
-                  <label className="form-field">
-                    <span>Target Medicine</span>
-                    <input
-                      type="text"
-                      disabled
-                      value={modal.item?.medicineName || `Medicine #${modal.item?.medicineId}`}
-                    />
-                  </label>
-                )}
-
-                <label className="form-field">
-                  <span>Batch Lot Number *</span>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. B-26011"
-                    value={form.batchNumber}
-                    onChange={(e) => setForm({ ...form, batchNumber: e.target.value })}
-                  />
-                </label>
-
-                <label className="form-field">
-                  <span>Manufacturing Date *</span>
-                  <input
-                    type="date"
-                    required
-                    value={form.manufacturingDate}
-                    onChange={(e) => setForm({ ...form, manufacturingDate: e.target.value })}
-                  />
-                </label>
-
-                <label className="form-field">
-                  <span>Expiry Date *</span>
-                  <input
-                    type="date"
-                    required
-                    value={form.expiryDate}
-                    onChange={(e) => setForm({ ...form, expiryDate: e.target.value })}
-                  />
-                </label>
-
-                {modal.mode === "create" && (
-                  <label className="form-field">
-                    <span>Initial Quantity Received *</span>
-                    <input
-                      type="number"
-                      min="1"
-                      required
-                      placeholder="e.g. 100"
-                      value={form.initialQuantity}
-                      onChange={(e) => setForm({ ...form, initialQuantity: e.target.value })}
-                    />
-                  </label>
-                )}
-
-                <label className="form-field">
-                  <span>Unit Cost (PKR) *</span>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    required
-                    placeholder="e.g. 240.00"
-                    value={form.unitCost}
-                    onChange={(e) => setForm({ ...form, unitCost: e.target.value })}
-                  />
-                </label>
-              </div>
-
-              <div className="modal-actions">
-                <button
-                  type="button"
-                  className="btn btn-light"
-                  onClick={() => setModal(null)}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="btn btn-primary"
-                  disabled={saving}
-                >
-                  {saving ? "Saving..." : modal.mode === "edit" ? "Save Changes" : "Create Batch"}
-                </button>
-              </div>
-            </form>
-          </div>
+          {/* Pagination */}
+          <Pagination
+            page={page}
+            pageSize={pageSize}
+            totalCount={batches.length}
+            onPageChange={(p) => setPage(p)}
+            onPageSizeChange={(sz) => {
+              setPageSize(sz);
+              setPage(1);
+            }}
+            pageSizeOptions={[5, 10, 25, 50]}
+          />
         </div>
       )}
     </div>

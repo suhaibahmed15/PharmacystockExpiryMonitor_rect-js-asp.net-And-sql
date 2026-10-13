@@ -1,4 +1,4 @@
-﻿namespace PharmacyStockExpiryMonitor.Api.DTOs.Medicine
+namespace PharmacyStockExpiryMonitor.Api.DTOs.Medicine
 {
     public class MedicineDto
     {
@@ -21,5 +21,13 @@
         public int CurrentStock { get; set; }
 
         public bool IsActive { get; set; }
+
+        public DateTime CreatedAt { get; set; }
+
+        public string? CreatedBy { get; set; }
+
+        public DateTime? UpdatedAt { get; set; }
+
+        public string? UpdatedBy { get; set; }
     }
 }

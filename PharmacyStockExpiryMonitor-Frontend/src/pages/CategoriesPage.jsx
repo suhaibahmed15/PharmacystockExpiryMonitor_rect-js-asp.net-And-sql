@@ -1,309 +1,269 @@
 import React, { useEffect, useState } from "react";
 import {
-  Tags,
-  Plus,
-  Search,
-  AlertTriangle,
-  Edit2,
-  Trash2,
-  X,
-  RefreshCw,
-  ChevronLeft,
-  ChevronRight
-} from "lucide-react";
-import {
-  getCategories,
-  createCategory,
-  updateCategory,
-  deleteCategory,
-  errorMessage
-} from "../api";
+  getCategoriesApi,
+  createCategoryApi,
+  updateCategoryApi,
+  deleteCategoryApi,
+  getErrorMessage
+} from "../services/api";
 import Pagination from "../components/Pagination";
+import "../styles/Categories.css";
 
-export default function CategoriesPage({ onSetToast }) {
+export default function CategoriesPage() {
   const [categories, setCategories] = useState([]);
-  const [totalCount, setTotalCount] = useState(0);
-  const [totalPages, setTotalPages] = useState(1);
-  const [page, setPage] = useState(1);
-  const pageSize = 10;
-
-  const [search, setSearch] = useState("");
-  const [selectedStatus, setSelectedStatus] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
-  const [modal, setModal] = useState(null); // { mode: 'create' | 'edit', item?: any }
-  const [form, setForm] = useState({ name: "", isActive: true });
-  const [saving, setSaving] = useState(false);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState(""); // "" | "true" | "false"
+  const [showForm, setShowForm] = useState(false);
+  const [editId, setEditId] = useState(null);
+  const [formData, setFormData] = useState({
+    name: "",
+    description: "",
+    isActive: true
+  });
 
-  async function loadCategories() {
+  const loadCategories = async () => {
     setLoading(true);
     setError("");
     try {
-      const params = new URLSearchParams({
-        page: page.toString(),
-        pageSize: pageSize.toString()
+      const res = await getCategoriesApi({
+        page: 1,
+        pageSize: 100,
+        search: search.trim() || undefined,
+        isActive: statusFilter !== "" ? statusFilter === "true" : undefined
       });
-      if (search.trim()) params.append("search", search.trim());
-      if (selectedStatus !== "") params.append("isActive", selectedStatus);
-
-      const res = await getCategories(params);
-      setCategories(res.data);
-      setTotalCount(res.raw.data?.totalCount ?? res.data.length);
-      setTotalPages(res.raw.data?.totalPages ?? Math.ceil((res.raw.data?.totalCount || 1) / pageSize));
+      setCategories(res.data.items || res.data || []);
     } catch (err) {
-      setError(errorMessage(err));
+      setError(getErrorMessage(err));
     } finally {
       setLoading(false);
     }
-  }
+  };
 
   useEffect(() => {
     loadCategories();
-  }, [page, search, selectedStatus]);
+  }, [search, statusFilter]);
 
-  function openCreate() {
-    setForm({ name: "", isActive: true });
-    setModal({ mode: "create" });
-  }
+  const handleOpenAdd = () => {
+    setFormData({ name: "", description: "", isActive: true });
+    setEditId(null);
+    setShowForm(true);
+    setError("");
+    setSuccess("");
+  };
 
-  function openEdit(item) {
-    setForm({ name: item.name || "", isActive: item.isActive !== false });
-    setModal({ mode: "edit", item });
-  }
+  const handleOpenEdit = (item) => {
+    setFormData({
+      name: item.name,
+      description: item.description || "",
+      isActive: item.isActive
+    });
+    setEditId(item.id);
+    setShowForm(true);
+    setError("");
+    setSuccess("");
+  };
 
-  async function handleSave(e) {
+  const handleFormSubmit = async (e) => {
     e.preventDefault();
-    setSaving(true);
-    try {
-      if (modal.mode === "edit") {
-        await updateCategory(modal.item.id, {
-          name: form.name.trim(),
-          isActive: form.isActive
-        });
-        onSetToast(`Category '${form.name}' updated.`);
-      } else {
-        await createCategory({
-          name: form.name.trim()
-        });
-        onSetToast(`Category '${form.name}' created.`);
-      }
-      setModal(null);
-      loadCategories();
-    } catch (err) {
-      setError(errorMessage(err));
-    } finally {
-      setSaving(false);
+    if (!formData.name) {
+      setError("Category Name is required.");
+      return;
     }
-  }
 
-  async function handleDelete(item) {
-    if (!window.confirm(`Delete category '${item.name}'?`)) return;
     try {
-      await deleteCategory(item.id);
-      onSetToast(`Category '${item.name}' deleted.`);
+      if (editId) {
+        await updateCategoryApi(editId, formData);
+        setSuccess("Category updated successfully.");
+      } else {
+        await createCategoryApi({
+          name: formData.name,
+          description: formData.description
+        });
+        setSuccess("Category created successfully.");
+      }
+      setShowForm(false);
+      setEditId(null);
       loadCategories();
     } catch (err) {
-      setError(errorMessage(err));
+      setError(getErrorMessage(err));
     }
-  }
+  };
+
+  const handleDelete = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this category?")) return;
+    setError("");
+    setSuccess("");
+    try {
+      await deleteCategoryApi(id);
+      setSuccess("Category deleted successfully.");
+      loadCategories();
+    } catch (err) {
+      setError(getErrorMessage(err));
+    }
+  };
 
   return (
-    <div className="page-content">
-      <div className="page-heading">
-        <div>
-          <div className="eyebrow">
-            <span>CLASSIFICATION TAXONOMY</span>
-            <span className="eyebrow-line" />
-          </div>
-          <h1>Medicine Categories</h1>
-          <p>
-            Structure medicines by therapeutic classification (Antibiotics, Analgesics, Cardiovascular, etc.).
-          </p>
-        </div>
-        <div className="heading-actions">
-          <button className="btn btn-light" onClick={loadCategories}>
-            <RefreshCw size={15} /> Refresh
-          </button>
-          <button className="btn btn-primary" onClick={openCreate}>
-            <Plus size={16} /> Add Category
-          </button>
-        </div>
-      </div>
+    <div className="container">
+      <h1>Category Management</h1>
 
-      {error && (
-        <div className="error-banner">
-          <AlertTriangle size={18} />
-          <span>{error}</span>
-          <button onClick={loadCategories}>Retry</button>
-        </div>
-      )}
+      {error && <div className="message-error">{error}</div>}
+      {success && <div className="message-success">{success}</div>}
 
-      {/* Filter and Search */}
-      <div className="filter-bar">
-        <div className="search-input-wrap">
-          <Search size={16} />
+      <div className="category-top-bar">
+        <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
           <input
             type="text"
             placeholder="Search category name..."
             value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setPage(1);
-            }}
+            onChange={(e) => setSearch(e.target.value)}
+            style={{ padding: "6px 8px", width: "220px", border: "1px solid #ccc" }}
           />
-          {search && (
-            <button className="clear-btn" onClick={() => setSearch("")}>
-              <X size={14} />
-            </button>
-          )}
-        </div>
 
-        <div className="filter-group">
+          {/* Active / Inactive Dropdown */}
           <select
-            value={selectedStatus}
-            onChange={(e) => {
-              setSelectedStatus(e.target.value);
-              setPage(1);
-            }}
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            style={{ padding: "6px 8px", border: "1px solid #ccc", borderRadius: "3px" }}
           >
             <option value="">All Statuses</option>
             <option value="true">Active Only</option>
             <option value="false">Inactive Only</option>
           </select>
         </div>
+
+        <button className="btn-primary" onClick={handleOpenAdd}>
+          {showForm && !editId ? "Close Form" : "+ Add Category"}
+        </button>
       </div>
 
-      {/* Table */}
-      <section className="panel table-panel">
-        <div className="panel-head">
-          <div className="table-caption">
-            Showing <b>{categories.length}</b> category groups
+      {showForm && (
+        <form className="simple-form" onSubmit={handleFormSubmit}>
+          <h3>{editId ? "Edit Category" : "Add New Category"}</h3>
+          <div className="form-group">
+            <label>Category Name *</label>
+            <input
+              type="text"
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              required
+            />
           </div>
-        </div>
+          <div className="form-group">
+            <label>Description</label>
+            <input
+              type="text"
+              value={formData.description}
+              onChange={(e) =>
+                setFormData({ ...formData, description: e.target.value })
+              }
+            />
+          </div>
+          {editId && (
+            <div className="form-group">
+              <label>
+                <input
+                  type="checkbox"
+                  checked={formData.isActive}
+                  onChange={(e) =>
+                    setFormData({ ...formData, isActive: e.target.checked })
+                  }
+                  style={{ width: "auto", marginRight: "8px" }}
+                />
+                Active
+              </label>
+            </div>
+          )}
+          <div>
+            <button type="submit" className="btn-primary" style={{ marginRight: "10px" }}>
+              {editId ? "Update" : "Save"}
+            </button>
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => setShowForm(false)}
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+      )}
 
-        <div className="table-responsive">
-          <table>
+      {loading ? (
+        <p>Loading categories...</p>
+      ) : (
+        <div className="table-container">
+          <table className="simple-table">
             <thead>
               <tr>
                 <th>ID</th>
-                <th>CATEGORY NAME</th>
-                <th>STATUS</th>
-                <th className="text-right">ACTIONS</th>
+                <th>Name</th>
+                <th>Description</th>
+                <th>Status</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {categories.map((c) => (
-                <tr key={c.id}>
-                  <td>
-                    <span className="code-badge">#{c.id}</span>
-                  </td>
-                  <td>
-                    <b>{c.name}</b>
-                  </td>
-                  <td>
-                    <span className={`status-pill ${c.isActive ? "good" : "muted"}`}>
-                      <i /> {c.isActive ? "Active" : "Inactive"}
-                    </span>
-                  </td>
-                  <td className="text-right">
-                    <div className="action-buttons-group">
-                      <button
-                        className="icon-btn edit-btn"
-                        title="Edit Category"
-                        onClick={() => openEdit(c)}
-                      >
-                        <Edit2 size={15} />
-                      </button>
-                      <button
-                        className="icon-btn delete-btn"
-                        title="Delete Category"
-                        onClick={() => handleDelete(c)}
-                      >
-                        <Trash2 size={15} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-              {categories.length === 0 && !loading && (
+              {categories.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="empty-table-cell">
-                    <Tags size={32} />
-                    <p>No categories found.</p>
+                  <td colSpan="5" style={{ textAlign: "center" }}>
+                    No categories found.
                   </td>
                 </tr>
+              ) : (
+                categories
+                  .slice((page - 1) * pageSize, page * pageSize)
+                  .map((c) => (
+                    <tr key={c.id}>
+                      <td>{c.id}</td>
+                      <td>
+                        <strong>{c.name}</strong>
+                      </td>
+                      <td>{c.description || "-"}</td>
+                      <td>
+                        {c.isActive ? (
+                          <span style={{ color: "green", fontWeight: "bold" }}>Active</span>
+                        ) : (
+                          <span style={{ color: "gray", fontWeight: "bold" }}>Inactive</span>
+                        )}
+                      </td>
+                      <td>
+                        <button
+                          className="btn-secondary btn-small"
+                          onClick={() => handleOpenEdit(c)}
+                        >
+                          Edit
+                        </button>
+                        <button
+                          className="btn-danger btn-small"
+                          onClick={() => handleDelete(c.id)}
+                        >
+                          Delete
+                        </button>
+                      </td>
+                    </tr>
+                  ))
               )}
             </tbody>
           </table>
-        </div>
 
-        {/* Pagination */}
-        <Pagination
-          page={page}
-          pageSize={pageSize}
-          totalCount={totalCount}
-          onPageChange={setPage}
-        />
-      </section>
-
-      {/* Modal */}
-      {modal && (
-        <div className="modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && setModal(null)}>
-          <div className="record-modal">
-            <div className="modal-head">
-              <div>
-                <span className="eyebrow">TAXONOMY</span>
-                <h2>{modal.mode === "edit" ? "Edit Category" : "Add Category"}</h2>
-              </div>
-              <button className="icon-btn" onClick={() => setModal(null)}>
-                <X size={18} />
-              </button>
-            </div>
-
-            <form onSubmit={handleSave}>
-              <div className="form-grid">
-                <label className="form-field" style={{ gridColumn: "1 / -1" }}>
-                  <span>Category Name *</span>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. Antibiotics"
-                    value={form.name}
-                    onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  />
-                </label>
-
-                {modal.mode === "edit" && (
-                  <label className="check-field" style={{ gridColumn: "1 / -1" }}>
-                    <input
-                      type="checkbox"
-                      checked={form.isActive}
-                      onChange={(e) => setForm({ ...form, isActive: e.target.checked })}
-                    />
-                    <span>Active Category</span>
-                  </label>
-                )}
-              </div>
-
-              <div className="modal-actions">
-                <button
-                  type="button"
-                  className="btn btn-light"
-                  onClick={() => setModal(null)}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="btn btn-primary"
-                  disabled={saving}
-                >
-                  {saving ? "Saving..." : "Save Category"}
-                </button>
-              </div>
-            </form>
-          </div>
+          {/* Pagination */}
+          <Pagination
+            page={page}
+            pageSize={pageSize}
+            totalCount={categories.length}
+            onPageChange={(p) => setPage(p)}
+            onPageSizeChange={(sz) => {
+              setPageSize(sz);
+              setPage(1);
+            }}
+            pageSizeOptions={[5, 10, 25, 50]}
+          />
         </div>
       )}
     </div>

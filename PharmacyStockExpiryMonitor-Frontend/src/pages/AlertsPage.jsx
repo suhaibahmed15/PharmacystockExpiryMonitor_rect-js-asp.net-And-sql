@@ -1,459 +1,315 @@
 import React, { useEffect, useState } from "react";
 import {
-  Bell,
-  Plus,
-  Search,
-  CheckCircle,
-  AlertTriangle,
-  AlertOctagon,
-  CalendarClock,
-  Activity,
-  Check,
-  Eye,
-  X,
-  RefreshCw,
-  Clock
-} from "lucide-react";
-import {
-  getAlerts,
-  createAlert,
-  markAlertRead,
-  resolveAlert,
-  getMedicines,
-  getBatches,
-  errorMessage
-} from "../api";
+  getAlertsApi,
+  markAlertAsReadApi,
+  resolveAlertApi,
+  createAlertApi,
+  getMedicinesApi,
+  getErrorMessage
+} from "../services/api";
 import Pagination from "../components/Pagination";
+import "../styles/Alerts.css";
 
-export default function AlertsPage({ onSetToast }) {
+export default function AlertsPage() {
   const [alerts, setAlerts] = useState([]);
   const [medicines, setMedicines] = useState([]);
-  const [batches, setBatches] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
-  const [search, setSearch] = useState("");
-  const [filterType, setFilterType] = useState("");
-  const [filterStatus, setFilterStatus] = useState("unresolved"); // 'all' | 'unresolved' | 'unread' | 'resolved'
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-
-  const [modal, setModal] = useState(false);
-  const [form, setForm] = useState({
+  const [filter, setFilter] = useState("all"); // 'all' | 'unresolved' | 'unread'
+  const [showForm, setShowForm] = useState(false);
+  const [formData, setFormData] = useState({
     medicineId: "",
     batchId: "",
-    alertType: "1", // 1: LowStock, 2: NearExpiry, 3: Expired, 4: StockOut
+    alertType: 1, // 1: LowStock, 2: NearExpiry, 3: Expired, 4: StockOut
     message: ""
   });
-  const [saving, setSaving] = useState(false);
 
-  async function loadData() {
+  const loadData = async () => {
     setLoading(true);
     setError("");
     try {
-      const [alertRes, medRes, batchRes] = await Promise.allSettled([
-        getAlerts(),
-        getMedicines({ page: 1, pageSize: 100 }),
-        getBatches()
+      const [alertsRes, medRes] = await Promise.all([
+        getAlertsApi(),
+        getMedicinesApi({ page: 1, pageSize: 100 })
       ]);
-
-      if (alertRes.status === "fulfilled") setAlerts(alertRes.value.data);
-      if (medRes.status === "fulfilled") setMedicines(medRes.value.data);
-      if (batchRes.status === "fulfilled") setBatches(batchRes.value.data);
+      setAlerts(alertsRes.data || []);
+      setMedicines(medRes.data.items || medRes.data || []);
     } catch (err) {
-      setError(errorMessage(err));
+      setError(getErrorMessage(err));
     } finally {
       setLoading(false);
     }
-  }
+  };
 
   useEffect(() => {
     loadData();
   }, []);
 
-  async function markAsRead(alertItem) {
+  const getAlertTypeName = (type) => {
+    switch (type) {
+      case 1:
+        return "Low Stock";
+      case 2:
+        return "Near Expiry";
+      case 3:
+        return "Expired";
+      case 4:
+        return "Stock Out";
+      default:
+        return `Type #${type}`;
+    }
+  };
+
+  const handleMarkAsRead = async (id) => {
+    setError("");
+    setSuccess("");
     try {
-      await markAlertRead(alertItem.id);
-      onSetToast("Alert marked as read.");
+      await markAlertAsReadApi(id);
+      setSuccess("Alert marked as read.");
       loadData();
     } catch (err) {
-      setError(errorMessage(err));
+      setError(getErrorMessage(err));
     }
-  }
+  };
 
-  async function resolveAlert(alertItem) {
+  const handleResolve = async (id) => {
+    setError("");
+    setSuccess("");
     try {
-      await resolveAlert(alertItem.id);
-      onSetToast("Alert marked as resolved.");
+      await resolveAlertApi(id);
+      setSuccess("Alert resolved successfully.");
       loadData();
     } catch (err) {
-      setError(errorMessage(err));
+      setError(getErrorMessage(err));
     }
-  }
+  };
 
-  function openCreate() {
-    setForm({
-      medicineId: medicines[0]?.id?.toString() || "",
-      batchId: "",
-      alertType: "2",
-      message: "Batch nearing expiration; requires priority dispensary."
-    });
-    setModal(true);
-  }
-
-  async function handleSave(e) {
+  const handleCreateAlert = async (e) => {
     e.preventDefault();
-    if (!form.medicineId) {
-      onSetToast("Please select a Medicine.");
+    if (!formData.medicineId || !formData.message) {
+      setError("Medicine and message are required.");
       return;
     }
 
-    setSaving(true);
     try {
-      const payload = {
-        medicineId: parseInt(form.medicineId, 10),
-        batchId: form.batchId ? parseInt(form.batchId, 10) : null,
-        alertType: parseInt(form.alertType, 10),
-        message: form.message.trim()
-      };
-
-      await createAlert(payload);
-      onSetToast("New alert registered.");
-      setModal(false);
+      await createAlertApi({
+        medicineId: Number(formData.medicineId),
+        batchId: formData.batchId ? Number(formData.batchId) : null,
+        alertType: Number(formData.alertType),
+        message: formData.message
+      });
+      setSuccess("Alert created successfully.");
+      setShowForm(false);
       loadData();
     } catch (err) {
-      setError(errorMessage(err));
-    } finally {
-      setSaving(false);
+      setError(getErrorMessage(err));
     }
-  }
+  };
 
-  function renderAlertIcon(type) {
-    // 1: LowStock, 2: NearExpiry, 3: Expired, 4: StockOut
-    const t = Number(type);
-    if (t === 1 || type === "LowStock") {
-      return (
-        <div className="alert-type-icon orange">
-          <Activity size={16} />
-        </div>
-      );
-    }
-    if (t === 2 || type === "NearExpiry") {
-      return (
-        <div className="alert-type-icon purple">
-          <CalendarClock size={16} />
-        </div>
-      );
-    }
-    if (t === 3 || type === "Expired") {
-      return (
-        <div className="alert-type-icon red">
-          <AlertOctagon size={16} />
-        </div>
-      );
-    }
-    return (
-      <div className="alert-type-icon red">
-        <AlertTriangle size={16} />
-      </div>
-    );
-  }
-
-  function getAlertTypeName(type) {
-    const t = Number(type);
-    if (t === 1 || type === "LowStock") return "Low Stock Alert";
-    if (t === 2 || type === "NearExpiry") return "Near Expiration Alert";
-    if (t === 3 || type === "Expired") return "Expired Batch Alert";
-    return "Stockout Risk Alert";
-  }
-
+  // Filter alerts: resolved, unresolved, readed, unreaded
   const filteredAlerts = alerts.filter((a) => {
-    const matchesSearch =
-      (a.message || "").toLowerCase().includes(search.toLowerCase()) ||
-      (a.medicineName || "").toLowerCase().includes(search.toLowerCase()) ||
-      (a.batchNumber || "").toLowerCase().includes(search.toLowerCase());
-
-    const matchesType = !filterType || a.alertType?.toString() === filterType;
-
-    let matchesStatus = true;
-    if (filterStatus === "unresolved") matchesStatus = !a.isResolved;
-    else if (filterStatus === "unread") matchesStatus = !a.isRead;
-    else if (filterStatus === "resolved") matchesStatus = !!a.isResolved;
-
-    return matchesSearch && matchesType && matchesStatus;
+    if (filter === "resolved") return a.isResolved;
+    if (filter === "unresolved") return !a.isResolved;
+    if (filter === "readed" || filter === "read") return a.isRead;
+    if (filter === "unreaded" || filter === "unread") return !a.isRead;
+    return true;
   });
 
   return (
-    <div className="page-content">
-      <div className="page-heading">
+    <div className="container">
+      <h1>Stock & Expiry Alerts</h1>
+
+      {error && <div className="message-error">{error}</div>}
+      {success && <div className="message-success">{success}</div>}
+
+      <div className="alerts-top-bar">
         <div>
-          <div className="eyebrow">
-            <span>CLINICAL RISK MONITOR</span>
-            <span className="eyebrow-line" />
-          </div>
-          <h1>System Alerts & Notifications</h1>
-          <p>
-            Real-time warnings for approaching batch expiry, low medicine inventory, and supply anomalies.
-          </p>
+          <label style={{ fontSize: "13px", fontWeight: "bold", marginRight: "8px" }}>
+            Alert Status:
+          </label>
+          <select
+            value={filter}
+            onChange={(e) => {
+              setFilter(e.target.value);
+              setPage(1);
+            }}
+            style={{ padding: "5px 10px", borderRadius: "4px", border: "1px solid #cbd5e1" }}
+          >
+            <option value="all">All Alerts</option>
+            <option value="resolved">Resolved</option>
+            <option value="unresolved">Unresolved</option>
+            <option value="readed">Readed</option>
+            <option value="unreaded">Unreaded</option>
+          </select>
         </div>
-        <div className="heading-actions">
-          <button className="btn btn-light" onClick={loadData}>
-            <RefreshCw size={15} /> Refresh
-          </button>
-          <button className="btn btn-primary" onClick={openCreate}>
-            <Plus size={16} /> Manual Alert
-          </button>
-        </div>
+
+        <button
+          className="btn-primary"
+          onClick={() => setShowForm(!showForm)}
+        >
+          {showForm ? "Close Form" : "+ Create Custom Alert"}
+        </button>
       </div>
 
-      {error && (
-        <div className="error-banner">
-          <AlertTriangle size={18} />
-          <span>{error}</span>
-          <button onClick={loadData}>Retry</button>
-        </div>
+      {showForm && (
+        <form className="simple-form" onSubmit={handleCreateAlert}>
+          <h3>Create Custom Alert</h3>
+          <div className="form-row">
+            <div className="form-group">
+              <label>Medicine *</label>
+              <select
+                value={formData.medicineId}
+                onChange={(e) =>
+                  setFormData({ ...formData, medicineId: e.target.value })
+                }
+                required
+              >
+                <option value="">-- Select Medicine --</option>
+                {medicines.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.name} ({m.medicineCode})
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="form-group">
+              <label>Alert Type *</label>
+              <select
+                value={formData.alertType}
+                onChange={(e) =>
+                  setFormData({ ...formData, alertType: e.target.value })
+                }
+              >
+                <option value={1}>Low Stock Warning</option>
+                <option value={2}>Near Expiry Alert</option>
+                <option value={3}>Expired Quarantine Alert</option>
+                <option value={4}>Stock Out Warning</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="form-group">
+            <label>Alert Message *</label>
+            <input
+              type="text"
+              value={formData.message}
+              onChange={(e) =>
+                setFormData({ ...formData, message: e.target.value })
+              }
+              placeholder="e.g. Critical stock depletion noticed during physical audit"
+              required
+            />
+          </div>
+
+          <div>
+            <button type="submit" className="btn-primary" style={{ marginRight: "10px" }}>
+              Save Alert
+            </button>
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => setShowForm(false)}
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
       )}
 
-      {/* Filter and Search */}
-      <div className="filter-bar">
-        <div className="search-input-wrap">
-          <Search size={16} />
-          <input
-            type="text"
-            placeholder="Search alerts by medicine, message or batch..."
-            value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-          />
-          {search && (
-            <button className="clear-btn" onClick={() => { setSearch(""); setPage(1); }}>
-              <X size={14} />
-            </button>
-          )}
-        </div>
-
-        <div className="filter-group">
-          <select
-            value={filterStatus}
-            onChange={(e) => { setFilterStatus(e.target.value); setPage(1); }}
-          >
-            <option value="all">All Statuses</option>
-            <option value="unresolved">Unresolved (Open)</option>
-            <option value="unread">Unread Only</option>
-            <option value="resolved">Resolved</option>
-          </select>
-
-          <select
-            value={filterType}
-            onChange={(e) => { setFilterType(e.target.value); setPage(1); }}
-          >
-            <option value="">All Alert Types</option>
-            <option value="1">Low Stock</option>
-            <option value="2">Near Expiry</option>
-            <option value="3">Expired Lot</option>
-            <option value="4">Stock Out</option>
-          </select>
-        </div>
-      </div>
-
-      {/* Main Alerts Table */}
-      <section className="panel table-panel">
-        <div className="panel-head">
-          <div className="table-caption">
-            Showing <b>{filteredAlerts.length}</b> notifications
-          </div>
-        </div>
-
-        <div className="table-responsive">
-          <table>
+      {loading ? (
+        <p>Loading alerts...</p>
+      ) : (
+        <div className="table-container">
+          <table className="simple-table">
             <thead>
               <tr>
-                <th>TYPE</th>
-                <th>MEDICINE / LOT</th>
-                <th>ALERT MESSAGE</th>
-                <th>TIME</th>
-                <th>READ STATUS</th>
-                <th>RESOLUTION</th>
-                <th className="text-right">ACTIONS</th>
+                <th>ID</th>
+                <th>Type</th>
+                <th>Medicine ID</th>
+                <th>Message</th>
+                <th>Read Status</th>
+                <th>Resolution</th>
+                <th>Created At</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {filteredAlerts
-                .slice((page - 1) * pageSize, page * pageSize)
-                .map((a) => (
-                <tr key={a.id} className={!a.isRead ? "row-unread" : ""}>
-                  <td>
-                    <div className="alert-type-cell">
-                      {renderAlertIcon(a.alertType)}
-                      <span>{getAlertTypeName(a.alertType)}</span>
-                    </div>
-                  </td>
-                  <td>
-                    <b>{a.medicineName || `Medicine #${a.medicineId}`}</b>
-                    {a.batchNumber && (
-                      <span className="code-badge d-block mt-1">{a.batchNumber}</span>
-                    )}
-                  </td>
-                  <td>
-                    <span className="cell-message-full">{a.message}</span>
-                  </td>
-                  <td>
-                    <div className="date-cell">
-                      <Clock size={12} className="text-muted" />
-                      <span>{new Date(a.createdAt).toLocaleString("en-GB")}</span>
-                    </div>
-                  </td>
-                  <td>
-                    <span className={`status-pill ${a.isRead ? "good" : "warn"}`}>
-                      <i /> {a.isRead ? "Read" : "Unread"}
-                    </span>
-                  </td>
-                  <td>
-                    <span className={`status-pill ${a.isResolved ? "good" : "muted"}`}>
-                      <i /> {a.isResolved ? "Resolved" : "Open"}
-                    </span>
-                  </td>
-                  <td className="text-right">
-                    <div className="action-buttons-group">
-                      {!a.isRead && (
-                        <button
-                          className="btn btn-xs btn-light"
-                          title="Mark Read"
-                          onClick={() => markAsRead(a)}
-                        >
-                          <Eye size={13} /> Mark Read
-                        </button>
-                      )}
-                      {!a.isResolved && (
-                        <button
-                          className="btn btn-xs btn-primary"
-                          title="Resolve Alert"
-                          onClick={() => resolveAlert(a)}
-                        >
-                          <Check size={13} /> Resolve
-                        </button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-              {filteredAlerts.length === 0 && !loading && (
+              {filteredAlerts.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="empty-table-cell">
-                    <CheckCircle size={32} className="text-success" />
-                    <p>No active alerts matching the selected filters.</p>
+                  <td colSpan="8" style={{ textAlign: "center" }}>
+                    No alerts found for this filter.
                   </td>
                 </tr>
+              ) : (
+                filteredAlerts
+                  .slice((page - 1) * pageSize, page * pageSize)
+                  .map((a) => (
+                    <tr key={a.id} className={!a.isRead ? "alert-unread" : ""}>
+                      <td>{a.id}</td>
+                      <td>
+                        <strong>{getAlertTypeName(a.alertType)}</strong>
+                      </td>
+                      <td>Medicine #{a.medicineId}</td>
+                      <td>{a.message}</td>
+                      <td>
+                        {a.isRead ? (
+                          <span style={{ color: "gray" }}>Read</span>
+                        ) : (
+                          <span className="status-unread-tag">Unread</span>
+                        )}
+                      </td>
+                      <td>
+                        {a.isResolved ? (
+                          <span className="status-resolved-tag">
+                            Resolved ({new Date(a.resolvedAt).toLocaleDateString()})
+                          </span>
+                        ) : (
+                          <span style={{ color: "#cc0000", fontWeight: "bold" }}>
+                            Unresolved
+                          </span>
+                        )}
+                      </td>
+                      <td>{new Date(a.createdAt).toLocaleString()}</td>
+                      <td>
+                        {!a.isRead && (
+                          <button
+                            className="btn-secondary btn-small"
+                            onClick={() => handleMarkAsRead(a.id)}
+                          >
+                            Mark Read
+                          </button>
+                        )}
+                        {!a.isResolved && (
+                          <button
+                            className="btn-success btn-small"
+                            onClick={() => handleResolve(a.id)}
+                          >
+                            Resolve
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))
               )}
             </tbody>
           </table>
-        </div>
 
-        {/* Pagination */}
-        <Pagination
-          page={page}
-          pageSize={pageSize}
-          totalCount={filteredAlerts.length}
-          onPageChange={setPage}
-          onPageSizeChange={(newSize) => {
-            setPageSize(newSize);
-            setPage(1);
-          }}
-        />
-      </section>
-
-      {/* Manual Alert Modal */}
-      {modal && (
-        <div className="modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && setModal(false)}>
-          <div className="record-modal">
-            <div className="modal-head">
-              <div>
-                <span className="eyebrow">RISK DISPATCH</span>
-                <h2>Register Manual Alert</h2>
-              </div>
-              <button className="icon-btn" onClick={() => setModal(false)}>
-                <X size={18} />
-              </button>
-            </div>
-
-            <form onSubmit={handleSave}>
-              <div className="form-grid">
-                <label className="form-field">
-                  <span>Product Medicine *</span>
-                  <select
-                    required
-                    value={form.medicineId}
-                    onChange={(e) => setForm({ ...form, medicineId: e.target.value })}
-                  >
-                    <option value="">Select Medicine</option>
-                    {medicines.map((m) => (
-                      <option key={m.id} value={m.id}>
-                        {m.name} ({m.medicineCode})
-                      </option>
-                    ))}
-                  </select>
-                </label>
-
-                <label className="form-field">
-                  <span>Specific Batch Lot (Optional)</span>
-                  <select
-                    value={form.batchId}
-                    onChange={(e) => setForm({ ...form, batchId: e.target.value })}
-                  >
-                    <option value="">All Batches / None</option>
-                    {batches
-                      .filter((b) => !form.medicineId || b.medicineId?.toString() === form.medicineId)
-                      .map((b) => (
-                        <option key={b.id} value={b.id}>
-                          {b.batchNumber} (Exp: {new Date(b.expiryDate).toLocaleDateString("en-GB")})
-                        </option>
-                      ))}
-                  </select>
-                </label>
-
-                <label className="form-field">
-                  <span>Alert Category *</span>
-                  <select
-                    required
-                    value={form.alertType}
-                    onChange={(e) => setForm({ ...form, alertType: e.target.value })}
-                  >
-                    <option value="1">Low Stock Warning</option>
-                    <option value="2">Near Expiry Caution</option>
-                    <option value="3">Expired Lot Violation</option>
-                    <option value="4">Stock Out Emergency</option>
-                  </select>
-                </label>
-              </div>
-
-              <label className="form-field" style={{ marginTop: "14px" }}>
-                <span>Alert Message *</span>
-                <textarea
-                  rows={3}
-                  required
-                  placeholder="Detail the critical condition or action needed..."
-                  value={form.message}
-                  onChange={(e) => setForm({ ...form, message: e.target.value })}
-                />
-              </label>
-
-              <div className="modal-actions">
-                <button
-                  type="button"
-                  className="btn btn-light"
-                  onClick={() => setModal(false)}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="btn btn-primary"
-                  disabled={saving}
-                >
-                  {saving ? "Registering..." : "Dispatch Alert"}
-                </button>
-              </div>
-            </form>
-          </div>
+          {/* Pagination */}
+          <Pagination
+            page={page}
+            pageSize={pageSize}
+            totalCount={filteredAlerts.length}
+            onPageChange={(p) => setPage(p)}
+            onPageSizeChange={(sz) => {
+              setPageSize(sz);
+              setPage(1);
+            }}
+            pageSizeOptions={[5, 10, 25, 50]}
+          />
         </div>
       )}
     </div>

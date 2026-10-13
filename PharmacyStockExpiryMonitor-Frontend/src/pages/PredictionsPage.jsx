@@ -1,372 +1,320 @@
 import React, { useEffect, useState } from "react";
 import {
-  TrendingUp,
-  Search,
-  Activity,
-  CalendarClock,
-  AlertTriangle,
-  Play,
-  TrendingDown,
-  Info,
-  CheckCircle,
-  X,
-  RefreshCw,
-  Clock,
-  Gauge
-} from "lucide-react";
-import {
-  getPredictions,
-  evaluateForecast,
-  getMedicines,
-  getBatches,
-  errorMessage
-} from "../api";
+  getPredictionsApi,
+  evaluatePredictionApi,
+  getMedicinesApi,
+  getBatchesApi,
+  getErrorMessage
+} from "../services/api";
 import Pagination from "../components/Pagination";
+import "../styles/Predictions.css";
 
-export default function PredictionsPage({ onSetToast }) {
+export default function PredictionsPage() {
   const [predictions, setPredictions] = useState([]);
   const [medicines, setMedicines] = useState([]);
   const [batches, setBatches] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [search, setSearch] = useState("");
+  const [success, setSuccess] = useState("");
+
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
-  const [modal, setModal] = useState(false);
-  const [evalMedicineId, setEvalMedicineId] = useState("");
-  const [evalBatchId, setEvalBatchId] = useState("");
+  // Evaluation Form State
+  const [showEvalForm, setShowEvalForm] = useState(true);
+  const [selectedMedicineId, setSelectedMedicineId] = useState("");
+  const [selectedBatchId, setSelectedBatchId] = useState("");
   const [evaluating, setEvaluating] = useState(false);
-  const [evalResult, setEvalResult] = useState(null);
+  const [latestResult, setLatestResult] = useState(null);
 
-  async function loadData() {
+  const loadData = async () => {
     setLoading(true);
     setError("");
     try {
-      const [predRes, medRes, batchRes] = await Promise.allSettled([
-        getPredictions(),
-        getMedicines({ page: 1, pageSize: 100 }),
-        getBatches()
+      const [predRes, medRes, batchRes] = await Promise.all([
+        getPredictionsApi(),
+        getMedicinesApi({ page: 1, pageSize: 100 }),
+        getBatchesApi()
       ]);
-
-      if (predRes.status === "fulfilled") setPredictions(predRes.value.data);
-      if (medRes.status === "fulfilled") setMedicines(medRes.value.data);
-      if (batchRes.status === "fulfilled") setBatches(batchRes.value.data);
+      setPredictions(predRes.data || []);
+      const meds = medRes.data.items || medRes.data || [];
+      setMedicines(meds);
+      if (meds.length > 0 && !selectedMedicineId) {
+        setSelectedMedicineId(meds[0].id);
+      }
+      setBatches(batchRes.data || []);
     } catch (err) {
-      setError(errorMessage(err));
+      setError(getErrorMessage(err));
     } finally {
       setLoading(false);
     }
-  }
+  };
 
   useEffect(() => {
     loadData();
   }, []);
 
-  function openEvaluate() {
-    setEvalMedicineId(medicines[0]?.id?.toString() || "");
-    setEvalBatchId("");
-    setEvalResult(null);
-    setModal(true);
-  }
+  // Filter batches strictly by the selected medicine so an invalid batch is never submitted!
+  const availableBatches = batches.filter(
+    (b) => Number(b.medicineId) === Number(selectedMedicineId)
+  );
 
-  async function handleEvaluate(e) {
+  const handleMedicineChange = (e) => {
+    const newMedId = e.target.value;
+    setSelectedMedicineId(newMedId);
+    // Reset batch selection whenever medicine changes to avoid cross-medicine batch mismatch!
+    setSelectedBatchId("");
+    setError("");
+  };
+
+  const handleRunEvaluation = async (e) => {
     e.preventDefault();
-    if (!evalMedicineId) {
-      onSetToast("Please select a Medicine to evaluate.");
+    if (!selectedMedicineId) {
+      setError("Please select a medicine to evaluate.");
       return;
     }
 
     setEvaluating(true);
     setError("");
+    setSuccess("");
     try {
       const payload = {
-        medicineId: parseInt(evalMedicineId, 10),
-        batchId: evalBatchId ? parseInt(evalBatchId, 10) : null
+        medicineId: Number(selectedMedicineId),
+        batchId: selectedBatchId ? Number(selectedBatchId) : null
       };
 
-      const res = await evaluateForecast(payload);
-      setEvalResult(res);
-      onSetToast("Stock intelligence evaluation generated.");
+      const res = await evaluatePredictionApi(payload);
+      setLatestResult(res.data);
+      setSuccess("AI Forecast evaluated successfully by backend.");
       loadData();
     } catch (err) {
-      setError(errorMessage(err));
+      setError(getErrorMessage(err));
     } finally {
       setEvaluating(false);
     }
-  }
+  };
 
-  const filteredPredictions = predictions.filter((p) => {
-    const med = medicines.find((m) => m.id === p.medicineId)?.name || "";
-    return (
-      med.toLowerCase().includes(search.toLowerCase()) ||
-      (p.explanation || "").toLowerCase().includes(search.toLowerCase()) ||
-      (p.predictionType || "").toLowerCase().includes(search.toLowerCase())
-    );
-  });
+  // Helper to find medicine name by ID
+  const getMedicineName = (medId) => {
+    const found = medicines.find((m) => Number(m.id) === Number(medId));
+    return found ? `${found.name} (${found.medicineCode})` : `Medicine #${medId}`;
+  };
 
   return (
-    <div className="page-content">
-      <div className="page-heading">
-        <div>
-          <div className="eyebrow">
-            <span>STOCK & CONSUMPTION FORECASTING</span>
-          </div>
-          <h1>Stock Forecasts</h1>
-          <p>
-            Consumption velocity analysis, estimated days remaining, and expiry risk evaluation.
-          </p>
-        </div>
-        <div className="heading-actions">
-          <button className="btn btn-light" onClick={loadData}>
-            <RefreshCw size={15} /> Refresh
-          </button>
-          <button className="btn btn-primary" onClick={openEvaluate}>
-            <TrendingUp size={16} /> Evaluate Medicine
-          </button>
-        </div>
-      </div>
+    <div className="container">
+      <h1>AI Forecasts & Stock Intelligence</h1>
 
-      {error && (
-        <div className="error-banner">
-          <AlertTriangle size={18} />
-          <span>{error}</span>
-          <button onClick={loadData}>Retry</button>
-        </div>
-      )}
+      {error && <div className="message-error">{error}</div>}
+      {success && <div className="message-success">{success}</div>}
 
-      {/* Advisory Explainer Banner */}
-      <div className="ai-advisory-banner">
-        <div className="advisory-icon-wrap">
-          <TrendingUp size={20} />
-        </div>
-        <div className="advisory-content">
-          <b>Consumption & Risk Modeling</b>
-          <p>
-            Forecasts are calculated from average daily consumption velocity and remaining shelf-life days to assist inventory replenishment decisions.
-          </p>
-        </div>
-        <button className="btn btn-sm btn-light" onClick={openEvaluate}>
-          <Play size={14} /> Evaluate Medicine
+      <div className="predictions-top-bar">
+        <p style={{ margin: 0, fontSize: "13px", color: "#64748b" }}>
+          Predictive consumption rates, estimated days until stockout, and AI risk recommendations.
+        </p>
+        <button
+          className="btn-primary"
+          onClick={() => setShowEvalForm(!showEvalForm)}
+        >
+          {showEvalForm ? "Hide Evaluation Form" : "+ Evaluate Medicine Forecast"}
         </button>
       </div>
 
-      {/* Search and Filters */}
-      <div className="filter-bar">
-        <div className="search-input-wrap">
-          <Search size={16} />
-          <input
-            type="text"
-            placeholder="Search prediction models and clinical explanations..."
-            value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-          />
-          {search && (
-            <button className="clear-btn" onClick={() => { setSearch(""); setPage(1); }}>
-              <X size={14} />
-            </button>
-          )}
-        </div>
-      </div>
+      {/* Evaluate Forecast Form */}
+      {showEvalForm && (
+        <form className="simple-form" onSubmit={handleRunEvaluation}>
+          <h3>Evaluate Stock Forecast (Backend AI Engine)</h3>
+          <p style={{ margin: "2px 0 14px 0", fontSize: "12px", color: "#64748b" }}>
+            Select a medicine and optionally a specific batch belonging to that medicine.
+          </p>
 
-      {/* Predictions Table */}
-      <section className="panel table-panel">
-        <div className="panel-head">
-          <div className="table-caption">
-            Showing <b>{filteredPredictions.length}</b> forecast evaluations
+          <div className="form-row">
+            <div className="form-group">
+              <label>Select Medicine *</label>
+              <select
+                value={selectedMedicineId}
+                onChange={handleMedicineChange}
+                required
+              >
+                <option value="">-- Choose Medicine --</option>
+                {medicines.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.name} ({m.medicineCode}) - Stock: {m.currentStock}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="form-group">
+              <label>Select Batch (Optional)</label>
+              <select
+                value={selectedBatchId}
+                onChange={(e) => setSelectedBatchId(e.target.value)}
+              >
+                <option value="">-- Entire Medicine Stock (All Batches) --</option>
+                {availableBatches.map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {b.batchNumber} (Expires: {new Date(b.expiryDate).toLocaleDateString()}, Rem: {b.remainingQuantity})
+                  </option>
+                ))}
+              </select>
+              {selectedMedicineId && availableBatches.length === 0 && (
+                <small style={{ color: "#64748b", display: "block", marginTop: "3px" }}>
+                  * No active batch registered for this medicine. Evaluation will run across entire stock.
+                </small>
+              )}
+            </div>
+          </div>
+
+          <div>
+            <button
+              type="submit"
+              className="btn-primary"
+              disabled={evaluating || !selectedMedicineId}
+              style={{ marginRight: "10px" }}
+            >
+              {evaluating ? "Evaluating Prediction..." : "Run AI Forecast Evaluation"}
+            </button>
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => setShowEvalForm(false)}
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+      )}
+
+      {/* Latest Evaluation Result Box */}
+      {latestResult && (
+        <div
+          style={{
+            border: "1px solid #93c5fd",
+            backgroundColor: "#eff6ff",
+            padding: "16px",
+            borderRadius: "6px",
+            marginBottom: "20px"
+          }}
+        >
+          <h3 style={{ margin: "0 0 10px 0", color: "#0369a1", fontSize: "15px" }}>
+            Latest AI Prediction Result: {getMedicineName(latestResult.medicineId)}
+          </h3>
+
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
+              gap: "10px",
+              marginBottom: "12px"
+            }}
+          >
+            <div style={{ background: "#ffffff", padding: "10px", borderRadius: "5px", border: "1px solid #bfdbfe" }}>
+              <div style={{ fontSize: "11px", color: "#64748b", textTransform: "uppercase" }}>Avg Daily Consumption</div>
+              <div style={{ fontSize: "18px", fontWeight: "700", color: "#0284c7" }}>
+                {Number(latestResult.averageDailyConsumption).toFixed(2)} units/day
+              </div>
+            </div>
+
+            <div style={{ background: "#ffffff", padding: "10px", borderRadius: "5px", border: "1px solid #bfdbfe" }}>
+              <div style={{ fontSize: "11px", color: "#64748b", textTransform: "uppercase" }}>Est. Days Remaining</div>
+              <div style={{ fontSize: "18px", fontWeight: "700", color: "#16a34a" }}>
+                {Number(latestResult.estimatedDaysRemaining).toFixed(0)} days
+              </div>
+            </div>
+
+            <div style={{ background: "#ffffff", padding: "10px", borderRadius: "5px", border: "1px solid #bfdbfe" }}>
+              <div style={{ fontSize: "11px", color: "#64748b", textTransform: "uppercase" }}>Risk Score</div>
+              <div style={{ fontSize: "18px", fontWeight: "700", color: "#d97706" }}>
+                {Number(latestResult.predictionScore).toFixed(2)}
+              </div>
+            </div>
+
+            <div style={{ background: "#ffffff", padding: "10px", borderRadius: "5px", border: "1px solid #bfdbfe" }}>
+              <div style={{ fontSize: "11px", color: "#64748b", textTransform: "uppercase" }}>Assessment Type</div>
+              <div style={{ fontSize: "15px", fontWeight: "600", color: "#1e293b", marginTop: "2px" }}>
+                {latestResult.predictionType || "Stock Health"}
+              </div>
+            </div>
+          </div>
+
+          <div style={{ background: "#ffffff", padding: "12px", borderRadius: "5px", border: "1px solid #bfdbfe", fontSize: "13px" }}>
+            <strong style={{ color: "#0369a1" }}>AI Advisory Explanation: </strong>
+            {latestResult.explanation || "No explanation provided."}
           </div>
         </div>
+      )}
 
-        <div className="table-responsive">
-          <table>
+      {/* Predictions Table */}
+      <h2>Historical Forecast Evaluations</h2>
+      {loading ? (
+        <p>Loading prediction records...</p>
+      ) : (
+        <div className="table-container predictions-table-container">
+          <table className="simple-table predictions-table">
             <thead>
               <tr>
-                <th>EVALUATED AT</th>
-                <th>PRODUCT MEDICINE</th>
-                <th>PREDICTION TYPE</th>
-                <th>AVG. DAILY RATE</th>
-                <th>EST. DAYS LEFT</th>
-                <th>CONFIDENCE</th>
-                <th>TRANSPARENT REASONING</th>
+                <th style={{ width: "5%" }}>ID</th>
+                <th style={{ width: "15%" }}>Medicine</th>
+                <th style={{ width: "10%" }}>Target Batch</th>
+                <th style={{ width: "11%" }}>Avg Daily</th>
+                <th style={{ width: "11%" }}>Est. Days Left</th>
+                <th style={{ width: "8%" }}>Risk Score</th>
+                <th style={{ width: "11%" }}>Assessment</th>
+                <th style={{ width: "19%" }}>Recommendation / Reason</th>
+                <th style={{ width: "10%" }}>Evaluated</th>
               </tr>
             </thead>
             <tbody>
-              {filteredPredictions
-                .slice((page - 1) * pageSize, page * pageSize)
-                .map((p) => {
-                const medName =
-                  medicines.find((m) => m.id === p.medicineId)?.name ||
-                  `Medicine #${p.medicineId}`;
-                const days = Math.round(Number(p.estimatedDaysRemaining) || 0);
-                const isUrgent = days <= 7;
-
-                return (
-                  <tr key={p.id}>
-                    <td>
-                      <div className="date-cell">
-                        <Clock size={12} className="text-muted" />
-                        <span>{new Date(p.predictedAt).toLocaleString("en-GB")}</span>
-                      </div>
-                    </td>
-                    <td>
-                      <b>{medName}</b>
-                      {p.batchId && (
-                        <span className="code-badge d-block mt-1">Lot #{p.batchId}</span>
-                      )}
-                    </td>
-                    <td>
-                      <span className="type-chip">{p.predictionType || "StockOut"}</span>
-                    </td>
-                    <td>
-                      <b>{Number(p.averageDailyConsumption).toFixed(1)}</b> units/day
-                    </td>
-                    <td>
-                      <span
-                        className={`pill-status ${
-                          days <= 3
-                            ? "status-danger"
-                            : days <= 10
-                            ? "status-urgent"
-                            : "status-safe"
-                        }`}
-                      >
-                        {days <= 0 ? "Depleted" : `~${days} days`}
-                      </span>
-                    </td>
-                    <td>
-                      <span className="score-badge">
-                        {Math.round(Number(p.predictionScore) * 100)}%
-                      </span>
-                    </td>
-                    <td>
-                      <span className="cell-message-full" title={p.explanation}>
-                        {p.explanation || "Calculated based on standard velocity."}
-                      </span>
-                    </td>
-                  </tr>
-                );
-              })}
-              {filteredPredictions.length === 0 && !loading && (
+              {predictions.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="empty-table-cell">
-                    <TrendingUp size={28} className="text-muted" />
-                    <p>No evaluations recorded yet. Run an analysis above.</p>
+                  <td colSpan="9" style={{ textAlign: "center", padding: "20px" }}>
+                    No predictions found. Use the evaluation form above to run a forecast.
                   </td>
                 </tr>
+              ) : (
+                predictions
+                  .slice((page - 1) * pageSize, page * pageSize)
+                  .map((p) => (
+                    <tr key={p.id}>
+                      <td>{p.id}</td>
+                      <td>
+                        <strong>{getMedicineName(p.medicineId)}</strong>
+                      </td>
+                      <td>{p.batchId ? `Batch #${p.batchId}` : "All Batches"}</td>
+                      <td>{Number(p.averageDailyConsumption).toFixed(2)}/day</td>
+                      <td>
+                        <strong style={{ color: Number(p.estimatedDaysRemaining) <= 30 ? "#dc2626" : "#16a34a" }}>
+                          {Number(p.estimatedDaysRemaining).toFixed(0)} days
+                        </strong>
+                      </td>
+                      <td>{Number(p.predictionScore).toFixed(2)}</td>
+                      <td>
+                        <span className="badge badge-neutral">
+                          {p.predictionType || "Consumption"}
+                        </span>
+                      </td>
+                      <td style={{ fontSize: "11px" }}>
+                        {p.explanation || "-"}
+                      </td>
+                      <td>{new Date(p.predictedAt).toLocaleDateString()}</td>
+                    </tr>
+                  ))
               )}
             </tbody>
           </table>
-        </div>
 
-        {/* Pagination */}
-        <Pagination
-          page={page}
-          pageSize={pageSize}
-          totalCount={filteredPredictions.length}
-          onPageChange={setPage}
-          onPageSizeChange={(newSize) => {
-            setPageSize(newSize);
-            setPage(1);
-          }}
-        />
-      </section>
-
-      {/* Run Evaluation Modal */}
-      {modal && (
-        <div className="modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && setModal(false)}>
-          <div className="record-modal">
-            <div className="modal-head">
-              <div>
-                <span className="eyebrow">FORECAST EVALUATION</span>
-                <h2>Evaluate Stock & Expiry Dynamics</h2>
-              </div>
-              <button className="icon-btn" onClick={() => setModal(false)}>
-                <X size={18} />
-              </button>
-            </div>
-
-            <form onSubmit={handleEvaluate}>
-              <div className="form-grid">
-                <label className="form-field">
-                  <span>Product Medicine to Evaluate *</span>
-                  <select
-                    required
-                    value={evalMedicineId}
-                    onChange={(e) => {
-                      setEvalMedicineId(e.target.value);
-                      setEvalBatchId("");
-                    }}
-                  >
-                    <option value="">Select Medicine</option>
-                    {medicines.map((m) => (
-                      <option key={m.id} value={m.id}>
-                        {m.name} ({m.medicineCode})
-                      </option>
-                    ))}
-                  </select>
-                </label>
-
-                <label className="form-field">
-                  <span>Specific Batch Lot (Optional)</span>
-                  <select
-                    value={evalBatchId}
-                    onChange={(e) => setEvalBatchId(e.target.value)}
-                  >
-                    <option value="">All Active Batches for Medicine</option>
-                    {batches
-                      .filter((b) => b.medicineId?.toString() === evalMedicineId)
-                      .map((b) => (
-                        <option key={b.id} value={b.id}>
-                          {b.batchNumber} ({b.remainingQuantity} units on hand)
-                        </option>
-                      ))}
-                  </select>
-                </label>
-              </div>
-
-              {evalResult && (
-                <div className="eval-result-card">
-                  <div className="eval-result-header">
-                    <CheckCircle size={18} className="text-success" />
-                    <b>Evaluation Outcome</b>
-                  </div>
-                  <div className="eval-metrics-grid">
-                    <div>
-                      <small>Est. Days Remaining</small>
-                      <strong>~{Math.round(evalResult.estimatedDaysRemaining)} days</strong>
-                    </div>
-                    <div>
-                      <small>Daily Velocity</small>
-                      <strong>{Number(evalResult.averageDailyConsumption).toFixed(1)} units/day</strong>
-                    </div>
-                    <div>
-                      <small>Confidence Score</small>
-                      <strong>{Math.round(Number(evalResult.predictionScore) * 100)}%</strong>
-                    </div>
-                  </div>
-                  <p className="eval-explanation">{evalResult.explanation}</p>
-                </div>
-              )}
-
-              <div className="modal-actions">
-                <button
-                  type="button"
-                  className="btn btn-light"
-                  onClick={() => setModal(false)}
-                >
-                  Close
-                </button>
-                <button
-                  type="submit"
-                  className="btn btn-primary"
-                  disabled={evaluating}
-                >
-                  <TrendingUp size={16} />
-                  {evaluating ? "Evaluating..." : "Run Evaluation"}
-                </button>
-              </div>
-            </form>
-          </div>
+          {/* Pagination */}
+          <Pagination
+            page={page}
+            pageSize={pageSize}
+            totalCount={predictions.length}
+            onPageChange={(p) => setPage(p)}
+            onPageSizeChange={(sz) => {
+              setPageSize(sz);
+              setPage(1);
+            }}
+            pageSizeOptions={[5, 10, 25, 50]}
+          />
         </div>
       )}
     </div>

@@ -1,8 +1,9 @@
-﻿    using PharmacyStockExpiryMonitor.Api.Enums;
+    using System.ComponentModel.DataAnnotations;
+    using PharmacyStockExpiryMonitor.Api.Enums;
 
     namespace PharmacyStockExpiryMonitor.Api.Entities;
 
-    public class Alert
+    public class Alert : IAuditableEntity
     {
         public int Id { get; set; }
 
@@ -21,6 +22,14 @@
         public DateTime? ResolvedAt { get; set; }
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+        [StringLength(250)]
+        public string? CreatedBy { get; set; }
+
+        public DateTime? UpdatedAt { get; set; }
+
+        [StringLength(250)]
+        public string? UpdatedBy { get; set; }
 
         public Medicine? Medicine { get; set; }
 

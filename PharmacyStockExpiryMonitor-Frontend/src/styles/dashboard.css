@@ -1,298 +1,165 @@
-/* Metric Cards Grid */
-.dashboard-metrics-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 14px;
-  margin-bottom: 22px;
+/* ==========================================================================
+   PharmaCare - Simple Beginner CSS for Dashboard
+   No complex styling, no flashy animations, clean and low-level.
+   ========================================================================== */
+
+.dashboard-container {
+  padding: 10px 0;
 }
 
-.metric-card {
-  background: white;
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-md);
-  padding: 16px 18px;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  box-shadow: var(--shadow-sm);
-  cursor: pointer;
-  transition: border-color 0.15s ease, background-color 0.15s ease;
+.dashboard-title {
+  font-size: 20px;
+  color: #333333;
+  margin: 0 0 6px 0;
 }
 
-.metric-card:hover {
-  border-color: #cbd5e1;
-  background-color: #fafbfd;
+.dashboard-subtitle {
+  font-size: 13px;
+  color: #666666;
+  margin: 0 0 16px 0;
 }
 
-.metric-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-}
-
-.metric-title {
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.metric-icon-box {
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  display: grid;
-  place-items: center;
-}
-
-.metric-icon-box.brand {
-  background: #f0f9ff;
-  color: var(--brand-primary);
-}
-
-.metric-icon-box.blue {
-  background: #eff6ff;
-  color: #2563eb;
-}
-
-.metric-icon-box.orange {
-  background: #fffbeb;
-  color: #d97706;
-}
-
-.metric-icon-box.purple {
-  background: #f5f3ff;
-  color: #7c3aed;
-}
-
-.metric-icon-box.red {
-  background: #fef2f2;
-  color: #dc2626;
-}
-
-.metric-icon-box.emerald {
-  background: #ecfdf5;
-  color: #059669;
-}
-
-.metric-value {
-  font-family: var(--font-display);
-  font-size: 24px;
-  font-weight: 800;
-  color: var(--navy-deep);
-  margin: 10px 0 6px;
-  letter-spacing: -0.5px;
-}
-
-.metric-footer {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 11px;
-  color: var(--text-muted);
-}
-
-.metric-arrow {
-  color: #94a3b8;
-  transition: color 0.15s ease;
-}
-
-.metric-card:hover .metric-arrow {
-  color: var(--brand-primary);
-}
-
-.metric-card.has-urgent {
-  background: #fffdfc;
-  border-color: #fed7aa;
-}
-
-.metric-card.has-urgent:hover {
-  border-color: #fdba74;
-}
-
-/* Dashboard Columns */
-.dashboard-grid-columns {
-  display: grid;
-  grid-template-columns: 1.6fr 1fr;
-  gap: 18px;
-  margin-bottom: 22px;
-}
-
-.bottom-tables {
-  grid-template-columns: 1fr 1fr;
-}
-
-.chart-box {
-  height: 240px;
-  width: 100%;
-}
-
-.chart-footer-legend {
+/* Simple Role Switcher Bar */
+.role-bar {
   display: flex;
   align-items: center;
-  gap: 16px;
-  padding-top: 12px;
-  border-top: 1px solid #f1f5f9;
-  font-size: 11px;
-  color: var(--text-muted);
-  margin-top: 10px;
-}
-
-.legend-indicator {
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  border-radius: 2px;
-  margin-right: 4px;
-}
-
-.legend-indicator.blue {
-  background-color: #0ea5e9;
-}
-
-.legend-indicator.green {
-  background-color: #10b981;
-}
-
-.link-text-btn {
-  background: transparent;
-  border: 0;
-  color: var(--brand-primary);
-  font-size: 11px;
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  gap: 3px;
-  margin-left: auto;
-}
-
-/* Attention Panel */
-.attention-items-list {
-  display: flex;
-  flex-direction: column;
   gap: 8px;
+  margin-bottom: 20px;
+  padding: 8px 12px;
+  background-color: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
 }
 
-.attention-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--border-light);
+.role-bar span {
+  font-size: 13px;
+  font-weight: 600;
+  color: #495057;
+}
+
+.role-bar button {
+  padding: 5px 12px;
+  font-size: 13px;
+  background-color: #ffffff;
+  border: 1px solid #ced4da;
+  border-radius: 3px;
+  color: #333333;
   cursor: pointer;
-  transition: background-color 0.15s ease, border-color 0.15s ease;
 }
 
-.attention-row:hover {
-  background: #f8fafc;
-  border-color: #cbd5e1;
+.role-bar button:hover {
+  background-color: #e9ecef;
 }
 
-.attention-icon {
-  width: 34px;
-  height: 34px;
-  border-radius: 8px;
+.role-bar button.active {
+  background-color: #0d6efd;
+  color: #ffffff;
+  border-color: #0d6efd;
+}
+
+.role-bar .default-role-text {
+  margin-left: auto;
+  font-size: 12px;
+  color: #6c757d;
+}
+
+/* Simple Notice Boxes */
+.notice-box {
+  padding: 10px 14px;
+  margin-bottom: 16px;
+  border-radius: 4px;
+  font-size: 13px;
+  border: 1px solid #ccc;
+}
+
+.notice-danger {
+  background-color: #f8d7da;
+  border-color: #f5c2c7;
+  color: #842029;
+}
+
+.notice-warning {
+  background-color: #fff3cd;
+  border-color: #ffecb5;
+  color: #664d03;
+}
+
+/* Simple Cards Grid */
+.cards-row {
   display: grid;
-  place-items: center;
-  flex-shrink: 0;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin-bottom: 20px;
 }
 
-.attention-icon.orange {
-  background: #fffbeb;
-  color: #d97706;
-}
-
-.attention-icon.red {
-  background: #fef2f2;
-  color: #dc2626;
-}
-
-.attention-icon.purple {
-  background: #f5f3ff;
-  color: #7c3aed;
-}
-
-.attention-info {
-  flex: 1;
-}
-
-.attention-info b {
+.card-item {
+  background-color: #ffffff;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  padding: 14px;
+  text-decoration: none;
+  color: #212529;
   display: block;
-  font-size: 12px;
-  color: var(--text-main);
 }
 
-.attention-info small {
-  font-size: 10px;
-  color: var(--text-muted);
+.card-item:hover {
+  border-color: #adb5bd;
 }
 
-.attention-badge {
-  padding: 2px 7px;
-  border-radius: 10px;
+.card-item h4 {
+  margin: 0 0 6px 0;
   font-size: 11px;
-  font-weight: 700;
-}
-
-.attention-badge.orange {
-  background: #fffbeb;
-  color: #b45309;
-  border: 1px solid #fef3c7;
-}
-
-.attention-badge.red {
-  background: #fef2f2;
-  color: #b91c1c;
-  border: 1px solid #fee2e2;
-}
-
-.attention-badge.purple {
-  background: #f5f3ff;
-  color: #6d28d9;
-  border: 1px solid #ede9fe;
-}
-
-.ai-insight-box {
-  background: #f8fafc;
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-md);
-  padding: 14px 16px;
-  margin-top: 14px;
-}
-
-.ai-insight-header {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--brand-primary);
-  font-size: 11px;
-  font-weight: 700;
   text-transform: uppercase;
+  color: #6c757d;
   letter-spacing: 0.5px;
-  margin-bottom: 6px;
 }
 
-.ai-insight-box p {
+.card-number {
+  font-size: 24px;
+  font-weight: bold;
+  color: #212529;
+  margin-bottom: 4px;
+}
+
+.card-link-text {
   font-size: 12px;
-  line-height: 1.5;
-  color: var(--text-muted);
-  margin: 0 0 10px;
+  color: #0d6efd;
 }
 
-.btn-ai-action {
-  background: transparent;
-  border: 0;
-  color: var(--brand-primary);
-  font-size: 11px;
-  font-weight: 700;
-  padding: 0;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
+/* Quick Action Links */
+.action-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 20px;
 }
 
-.btn-ai-action:hover {
-  color: var(--brand-primary-hover);
+.action-buttons a {
+  padding: 6px 12px;
+  background-color: #ffffff;
+  border: 1px solid #ced4da;
+  border-radius: 3px;
+  color: #212529;
+  text-decoration: none;
+  font-size: 13px;
+}
+
+.action-buttons a:hover {
+  background-color: #f8f9fa;
+  border-color: #adb5bd;
+}
+
+/* Simple Content Box */
+.simple-box {
+  background-color: #ffffff;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  padding: 16px;
+  margin-bottom: 20px;
+}
+
+.simple-box h3 {
+  margin: 0 0 12px 0;
+  font-size: 15px;
+  color: #333333;
 }

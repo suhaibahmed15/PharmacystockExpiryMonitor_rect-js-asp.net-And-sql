@@ -17,9 +17,10 @@ namespace PharmacyStockExpiryMonitor.Api.Services.Interfaces
         Task<SupplierDto> CreateAsync(
             CreateSupplierDto dto);
 
-        Task<SupplierDto?> UpdateAsync(
+        Task<bool> UpdateAsync(
             int id,
-            UpdateSupplierDto dto);
+            UpdateSupplierDto dto,
+            string UpdatedBy);
 
         Task<bool> DeleteAsync(int id);
     }

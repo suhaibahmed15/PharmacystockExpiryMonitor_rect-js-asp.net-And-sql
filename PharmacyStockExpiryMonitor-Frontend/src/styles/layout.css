@@ -1,4 +1,9 @@
-/* App Shell Layout */
+/* ==========================================================================
+   App Shell & Page Layout
+   Simple, clean, standard responsive container styles.
+   ========================================================================== */
+
+/* Outer Shell */
 .app-shell {
   min-height: 100vh;
   display: flex;
@@ -9,7 +14,7 @@
   background-color: var(--bg-app);
 }
 
-/* Main Area */
+/* Main Content Area */
 .main-area {
   margin-left: 250px;
   flex: 1;
@@ -19,15 +24,16 @@
   overflow-x: hidden;
   display: flex;
   flex-direction: column;
-  transition: margin-left 0.22s ease;
+  transition: margin-left 0.2s ease;
 }
 
-/* Page Layout */
+/* Page Content Padding */
 .page-content {
-  padding: 24px 28px 28px;
+  padding: 22px 26px 30px;
   flex: 1;
 }
 
+/* Standard Page Title Header */
 .page-heading {
   display: flex;
   align-items: flex-end;
@@ -53,10 +59,11 @@
 }
 
 .page-heading h1 {
-  font-size: 22px;
+  font-size: 20px;
   font-weight: 700;
-  color: #0f172a;
+  color: #111827;
   margin: 0 0 4px;
+  letter-spacing: -0.2px;
 }
 
 .page-heading p {
@@ -72,13 +79,14 @@
   flex-shrink: 0;
 }
 
-/* Panel Containers */
+/* Standard Content Cards / Panels */
 .panel {
-  background: #ffffff;
+  background: var(--bg-card);
   border: 1px solid var(--border-light);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-lg);
   padding: 18px 20px;
   box-shadow: var(--shadow-sm);
+  margin-bottom: 18px;
 }
 
 .panel-head {
@@ -91,7 +99,7 @@
 .panel-head h2 {
   font-size: 15px;
   font-weight: 600;
-  color: #0f172a;
+  color: #111827;
   margin: 0 0 3px;
 }
 
@@ -101,15 +109,15 @@
   margin: 0;
 }
 
-/* Footer */
+/* Simple Clean Footer */
 .page-footer {
-  padding: 14px 28px;
+  padding: 14px 26px;
   display: flex;
   justify-content: center;
   align-items: center;
   font-size: 12px;
   color: var(--text-muted);
   border-top: 1px solid var(--border-light);
-  background: #ffffff;
+  background: var(--bg-card);
   margin-top: auto;
 }

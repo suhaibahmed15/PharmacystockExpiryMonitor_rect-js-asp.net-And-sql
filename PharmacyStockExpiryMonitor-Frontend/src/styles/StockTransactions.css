@@ -1,0 +1,23 @@
+/* Basic Stock Transactions Page Styles */
+.tx-top-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+  gap: 10px;
+}
+
+.type-in {
+  color: #28a745;
+  font-weight: bold;
+}
+
+.type-out {
+  color: #0066cc;
+  font-weight: bold;
+}
+
+.type-adjust {
+  color: #d97706;
+  font-weight: bold;
+}

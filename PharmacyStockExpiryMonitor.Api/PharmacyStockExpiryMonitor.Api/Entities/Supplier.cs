@@ -1,8 +1,8 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 
 namespace PharmacyStockExpiryMonitor.Api.Entities;
 
-public class Supplier
+public class Supplier : IAuditableEntity
 {
     public int Id { get; set; }
 
@@ -28,7 +28,13 @@ public class Supplier
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
+    [StringLength(250)]
+    public string? CreatedBy { get; set; }
+
     public DateTime? UpdatedAt { get; set; }
+
+    [StringLength(250)]
+    public string? UpdatedBy { get; set; }
 
     public bool IsDeleted { get; set; } = false;
 

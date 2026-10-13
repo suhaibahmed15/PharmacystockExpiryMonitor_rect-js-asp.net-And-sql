@@ -1,4 +1,4 @@
-﻿using PharmacyStockExpiryMonitor.Api.DTOs.StockTransaction;
+using PharmacyStockExpiryMonitor.Api.DTOs.StockTransaction;
 using PharmacyStockExpiryMonitor.Api.Entities;
 using PharmacyStockExpiryMonitor.Api.Enums;
 using PharmacyStockExpiryMonitor.Api.Repositories.Interfaces;
@@ -41,7 +41,10 @@ namespace PharmacyStockExpiryMonitor.Api.Services
                     Reason = transaction.Reason,
                     IsAdminOverride =
                         transaction.IsAdminOverride,
-                    CreatedAt = transaction.CreatedAt
+                    CreatedAt = transaction.CreatedAt,
+                    CreatedBy = transaction.CreatedBy,
+                    UpdatedAt = transaction.UpdatedAt,
+                    UpdatedBy = transaction.UpdatedBy
                 }).ToList();
         }
 
@@ -69,7 +72,10 @@ namespace PharmacyStockExpiryMonitor.Api.Services
                 Reason = transaction.Reason,
                 IsAdminOverride =
                     transaction.IsAdminOverride,
-                CreatedAt = transaction.CreatedAt
+                CreatedAt = transaction.CreatedAt,
+                CreatedBy = transaction.CreatedBy,
+                UpdatedAt = transaction.UpdatedAt,
+                UpdatedBy = transaction.UpdatedBy
             };
         }
 
@@ -162,7 +168,13 @@ namespace PharmacyStockExpiryMonitor.Api.Services
                 IsAdminOverride =
                     createdTransaction.IsAdminOverride,
                 CreatedAt =
-                    createdTransaction.CreatedAt
+                    createdTransaction.CreatedAt,
+                CreatedBy =
+                    createdTransaction.CreatedBy,
+                UpdatedAt =
+                    createdTransaction.UpdatedAt,
+                UpdatedBy =
+                    createdTransaction.UpdatedBy
             };
         }
     }

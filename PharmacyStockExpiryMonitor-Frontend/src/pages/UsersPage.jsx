@@ -1,40 +1,37 @@
 import React, { useEffect, useState } from "react";
 import {
-  Users,
-  Plus,
-  Shield,
-  Trash2,
-  X,
-  RefreshCw,
-  AlertTriangle,
-  Key,
-  Mail,
-  UserCheck
-} from "lucide-react";
-import {
-  getUsers,
-  createUser,
-  assignUserRole,
-  deleteUser,
-  getRoles,
-  createRole,
-  errorMessage
-} from "../api";
+  getUsersApi,
+  createUserApi,
+  assignUserRoleApi,
+  deleteUserApi,
+  getRolesApi,
+  createRoleApi,
+  deleteRoleApi,
+  getErrorMessage
+} from "../services/api";
 import Pagination from "../components/Pagination";
+import "../styles/Users.css";
 
-export default function UsersPage({ onSetToast, currentUser }) {
+export default function UsersPage({ currentUser }) {
   const [users, setUsers] = useState([]);
   const [roles, setRoles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  // Filters
+  const [statusFilter, setStatusFilter] = useState(""); // "" | "true" | "false"
+  const [roleFilter, setRoleFilter] = useState("");
 
-  const [createUserModal, setCreateUserModal] = useState(false);
-  const [assignRoleModal, setAssignRoleModal] = useState(null); // target user
-  const [createRoleModal, setCreateRoleModal] = useState(false);
+  // Modals / Form toggles
+  const [showAddUser, setShowAddUser] = useState(false);
+  const [showAddRole, setShowAddRole] = useState(false);
+  const [assignRoleUserId, setAssignRoleUserId] = useState(null);
+  const [newRoleForUser, setNewRoleForUser] = useState("StoreManager");
 
-  const [userForm, setUserForm] = useState({
+  const [newUser, setNewUser] = useState({
     fullName: "",
     email: "",
     password: "",
@@ -42,468 +39,424 @@ export default function UsersPage({ onSetToast, currentUser }) {
     role: "Pharmacist"
   });
 
-  const [roleForm, setRoleForm] = useState({
-    roleName: ""
-  });
+  const [newRoleName, setNewRoleName] = useState("");
 
-  const [selectedNewRole, setSelectedNewRole] = useState("StoreManager");
-  const [saving, setSaving] = useState(false);
+  const isAdmin = currentUser?.role?.toLowerCase() === "admin";
 
-  async function loadData() {
+  const loadData = async () => {
+    if (!isAdmin) return;
     setLoading(true);
     setError("");
     try {
-      const [userRes, roleRes] = await Promise.allSettled([
-        getUsers(),
-        getRoles()
+      const [userRes, roleRes] = await Promise.all([
+        getUsersApi(),
+        getRolesApi()
       ]);
-
-      if (userRes.status === "fulfilled") setUsers(userRes.value.data);
-      if (roleRes.status === "fulfilled") setRoles(roleRes.value.data);
-
-      if (userRes.status === "rejected") {
-        if (userRes.reason?.response?.status === 403) {
-          setError("User Management requires Administrator role permissions.");
-        } else {
-          setError(errorMessage(userRes.reason));
-        }
-      }
+      setUsers(userRes.data || []);
+      setRoles(roleRes.data || []);
     } catch (err) {
-      setError(errorMessage(err));
+      setError(getErrorMessage(err));
     } finally {
       setLoading(false);
     }
-  }
+  };
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [isAdmin]);
 
-  async function handleCreateUser(e) {
+  if (!isAdmin) {
+    return (
+      <div className="container">
+        <h1>Access Restricted</h1>
+        <div className="message-error">
+          You do not have permission to view User Management. Only Administrators can access this page.
+        </div>
+      </div>
+    );
+  }
+
+  const handleCreateUser = async (e) => {
     e.preventDefault();
-    setSaving(true);
+    if (!newUser.fullName || !newUser.email || !newUser.password) {
+      setError("Please fill in Full Name, Email, and Password.");
+      return;
+    }
+
     try {
-      await createUser({
-        fullName: userForm.fullName.trim(),
-        email: userForm.email.trim(),
-        password: userForm.password,
-        phoneNumber: userForm.phoneNumber.trim() || null,
-        role: userForm.role
+      await createUserApi(newUser);
+      setSuccess("User created successfully.");
+      setShowAddUser(false);
+      setNewUser({
+        fullName: "",
+        email: "",
+        password: "",
+        phoneNumber: "",
+        role: "Pharmacist"
       });
-      onSetToast(`User account for '${userForm.fullName}' created.`);
-      setCreateUserModal(false);
       loadData();
     } catch (err) {
-      setError(errorMessage(err));
-    } finally {
-      setSaving(false);
+      setError(getErrorMessage(err));
     }
-  }
+  };
 
-  async function handleAssignRole(e) {
+  const handleAssignRole = async (userId) => {
+    try {
+      await assignUserRoleApi(userId, { role: newRoleForUser });
+      setSuccess("Role assigned successfully.");
+      setAssignRoleUserId(null);
+      loadData();
+    } catch (err) {
+      setError(getErrorMessage(err));
+    }
+  };
+
+  const handleDeleteUser = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this user?")) return;
+    try {
+      await deleteUserApi(id);
+      setSuccess("User deleted successfully.");
+      loadData();
+    } catch (err) {
+      setError(getErrorMessage(err));
+    }
+  };
+
+  const handleCreateRole = async (e) => {
     e.preventDefault();
-    if (!assignRoleModal) return;
-    setSaving(true);
+    if (!newRoleName) return;
     try {
-      await assignUserRole(assignRoleModal.id, selectedNewRole);
-      onSetToast(`Role '${selectedNewRole}' assigned to ${assignRoleModal.fullName}.`);
-      setAssignRoleModal(null);
+      await createRoleApi({ name: newRoleName });
+      setSuccess("Role created successfully.");
+      setShowAddRole(false);
+      setNewRoleName("");
       loadData();
     } catch (err) {
-      setError(errorMessage(err));
-    } finally {
-      setSaving(false);
+      setError(getErrorMessage(err));
     }
-  }
+  };
 
-  async function handleCreateRole(e) {
-    e.preventDefault();
-    setSaving(true);
+  const handleDeleteRole = async (roleId) => {
+    if (!window.confirm("Are you sure you want to delete this role?")) return;
     try {
-      await createRole(roleForm.roleName.trim());
-      onSetToast(`Security role '${roleForm.roleName}' registered.`);
-      setCreateRoleModal(false);
-      setRoleForm({ roleName: "" });
+      await deleteRoleApi(roleId);
+      setSuccess("Role deleted successfully.");
       loadData();
     } catch (err) {
-      setError(errorMessage(err));
-    } finally {
-      setSaving(false);
+      setError(getErrorMessage(err));
     }
-  }
+  };
 
-  async function handleDeleteUser(userItem) {
-    if (!window.confirm(`Delete user '${userItem.fullName || userItem.email}'?`)) return;
-    try {
-      await deleteUser(userItem.id);
-      onSetToast("User account deleted.");
-      loadData();
-    } catch (err) {
-      setError(errorMessage(err));
-    }
-  }
+  // Filter users by Active/Inactive status and role
+  const filteredUsers = users.filter((u) => {
+    if (statusFilter === "true" && !u.isActive) return false;
+    if (statusFilter === "false" && u.isActive) return false;
+    if (roleFilter && u.role?.toLowerCase() !== roleFilter.toLowerCase()) return false;
+    return true;
+  });
 
   return (
-    <div className="page-content">
-      <div className="page-heading">
-        <div>
-          <div className="eyebrow">
-            <span>IDENTITY & ACCESS GOVERNANCE</span>
-            <span className="eyebrow-line" />
-          </div>
-          <h1>Users & Security Roles</h1>
-          <p>
-            Role-Based Access Control (RBAC) governing Pharmacists, Store Managers, and System Administrators.
-          </p>
+    <div className="container">
+      <h1>User & Security Management (Admin)</h1>
+
+      {error && <div className="message-error">{error}</div>}
+      {success && <div className="message-success">{success}</div>}
+
+      <div className="users-top-bar">
+        <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+          {/* Active / Inactive Dropdown Filter */}
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            style={{ padding: "6px 8px", border: "1px solid #ccc", borderRadius: "3px" }}
+          >
+            <option value="">All Statuses (Active & Inactive)</option>
+            <option value="true">Active Users Only</option>
+            <option value="false">Inactive Users Only</option>
+          </select>
+
+          {/* Role Dropdown Filter */}
+          <select
+            value={roleFilter}
+            onChange={(e) => setRoleFilter(e.target.value)}
+            style={{ padding: "6px 8px", border: "1px solid #ccc", borderRadius: "3px" }}
+          >
+            <option value="">All Roles</option>
+            {roles.map((r) => (
+              <option key={r.id} value={r.name}>
+                {r.name}
+              </option>
+            ))}
+          </select>
         </div>
-        <div className="heading-actions">
-          <button className="btn btn-light" onClick={loadData}>
-            <RefreshCw size={15} /> Refresh
+
+        <div>
+          <button
+            className="btn-primary"
+            style={{ marginRight: "10px" }}
+            onClick={() => setShowAddUser(!showAddUser)}
+          >
+            {showAddUser ? "Close User Form" : "+ Add User"}
           </button>
-          <button className="btn btn-light" onClick={() => setCreateRoleModal(true)}>
-            <Shield size={15} /> New Role
-          </button>
-          <button className="btn btn-primary" onClick={() => setCreateUserModal(true)}>
-            <Plus size={16} /> Add User
+          <button
+            className="btn-secondary"
+            onClick={() => setShowAddRole(!showAddRole)}
+          >
+            {showAddRole ? "Close Role Form" : "+ Add Role"}
           </button>
         </div>
       </div>
 
-      {error && (
-        <div className="error-banner">
-          <AlertTriangle size={18} />
-          <span>{error}</span>
-          <button onClick={loadData}>Retry</button>
-        </div>
+      {/* Add User Form */}
+      {showAddUser && (
+        <form className="simple-form" onSubmit={handleCreateUser}>
+          <h3>Add New System User</h3>
+          <div className="form-row">
+            <div className="form-group">
+              <label>Full Name *</label>
+              <input
+                type="text"
+                value={newUser.fullName}
+                onChange={(e) =>
+                  setNewUser({ ...newUser, fullName: e.target.value })
+                }
+                required
+              />
+            </div>
+            <div className="form-group">
+              <label>Email Address *</label>
+              <input
+                type="email"
+                value={newUser.email}
+                onChange={(e) =>
+                  setNewUser({ ...newUser, email: e.target.value })
+                }
+                required
+              />
+            </div>
+          </div>
+
+          <div className="form-row">
+            <div className="form-group">
+              <label>Password (Min 6 chars) *</label>
+              <input
+                type="password"
+                value={newUser.password}
+                onChange={(e) =>
+                  setNewUser({ ...newUser, password: e.target.value })
+                }
+                required
+              />
+            </div>
+            <div className="form-group">
+              <label>Phone Number</label>
+              <input
+                type="text"
+                value={newUser.phoneNumber}
+                onChange={(e) =>
+                  setNewUser({ ...newUser, phoneNumber: e.target.value })
+                }
+              />
+            </div>
+          </div>
+
+          <div className="form-group">
+            <label>Assigned Role *</label>
+            <select
+              value={newUser.role}
+              onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}
+              required
+            >
+              {roles.map((r) => (
+                <option key={r.id} value={r.name}>
+                  {r.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <button type="submit" className="btn-primary" style={{ marginRight: "10px" }}>
+              Save User
+            </button>
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => setShowAddUser(false)}
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
       )}
 
-      {/* Users Table */}
-      <section className="panel table-panel">
-        <div className="panel-head">
-          <div className="table-caption">
-            Showing <b>{users.length}</b> registered pharmacy personnel accounts
+      {/* Add Role Form */}
+      {showAddRole && (
+        <form className="simple-form" onSubmit={handleCreateRole}>
+          <h3>Add New Role</h3>
+          <div className="form-group">
+            <label>Role Name *</label>
+            <input
+              type="text"
+              value={newRoleName}
+              onChange={(e) => setNewRoleName(e.target.value)}
+              placeholder="e.g. Auditor"
+              required
+            />
           </div>
-        </div>
+          <div>
+            <button type="submit" className="btn-primary" style={{ marginRight: "10px" }}>
+              Create Role
+            </button>
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => setShowAddRole(false)}
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+      )}
 
-        <div className="table-responsive">
-          <table>
+      {/* Roles List */}
+      <h3>System Roles</h3>
+      <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", marginBottom: "20px" }}>
+        {roles.map((r) => (
+          <div
+            key={r.id}
+            style={{
+              border: "1px solid #ddd",
+              padding: "6px 10px",
+              background: "#fafafa",
+              display: "flex",
+              alignItems: "center",
+              gap: "8px"
+            }}
+          >
+            <strong>{r.name}</strong>
+            {r.name !== "Admin" && (
+              <button
+                className="btn-danger btn-small"
+                style={{ padding: "1px 5px", fontSize: "10px" }}
+                onClick={() => handleDeleteRole(r.id)}
+              >
+                x
+              </button>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* Users Table */}
+      <h3>Registered Users ({filteredUsers.length})</h3>
+      {loading ? (
+        <p>Loading users...</p>
+      ) : (
+        <div className="table-container">
+          <table className="simple-table">
             <thead>
               <tr>
-                <th>PERSONNEL NAME</th>
-                <th>EMAIL ADDRESS</th>
-                <th>ASSIGNED ROLE</th>
-                <th>CONTACT PHONE</th>
-                <th>ACCOUNT STATUS</th>
-                <th className="text-right">ACTIONS</th>
+                <th>Full Name</th>
+                <th>Email</th>
+                <th>Phone</th>
+                <th>Role</th>
+                <th>Status</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {users
-                .slice((page - 1) * pageSize, page * pageSize)
-                .map((u) => (
-                <tr key={u.id}>
-                  <td>
-                    <b>{u.fullName || "—"}</b>
-                  </td>
-                  <td>
-                    <div className="contact-link">
-                      <Mail size={13} className="text-muted" />
-                      <span>{u.email}</span>
-                    </div>
-                  </td>
-                  <td>
-                    <span
-                      className={`role-pill ${
-                        u.role === "Admin"
-                          ? "role-admin"
-                          : u.role === "StoreManager"
-                          ? "role-manager"
-                          : "role-pharmacist"
-                      }`}
-                    >
-                      <Shield size={12} /> {u.role || "Pharmacist"}
-                    </span>
-                  </td>
-                  <td>{u.phoneNumber || "—"}</td>
-                  <td>
-                    <span className={`status-pill ${u.isActive ? "good" : "muted"}`}>
-                      <i /> {u.isActive ? "Active" : "Inactive"}
-                    </span>
-                  </td>
-                  <td className="text-right">
-                    <div className="action-buttons-group">
-                      <button
-                        className="btn btn-xs btn-light"
-                        onClick={() => {
-                          setSelectedNewRole(u.role || "Pharmacist");
-                          setAssignRoleModal(u);
-                        }}
-                      >
-                        <UserCheck size={13} /> Change Role
-                      </button>
-                      <button
-                        className="icon-btn delete-btn"
-                        onClick={() => handleDeleteUser(u)}
-                        title="Delete User"
-                      >
-                        <Trash2 size={15} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-              {users.length === 0 && !loading && (
+              {filteredUsers.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="empty-table-cell">
-                    <Users size={32} />
-                    <p>No user accounts found or insufficient permissions.</p>
+                  <td colSpan="6" style={{ textAlign: "center" }}>
+                    No users found matching the filter.
                   </td>
                 </tr>
+              ) : (
+                filteredUsers
+                  .slice((page - 1) * pageSize, page * pageSize)
+                  .map((u) => (
+                    <tr key={u.id}>
+                      <td>
+                        <strong>{u.fullName}</strong>
+                      </td>
+                      <td>{u.email}</td>
+                      <td>{u.phoneNumber || "-"}</td>
+                      <td>
+                        <span className="role-tag">{u.role}</span>
+                      </td>
+                      <td>
+                        {u.isActive ? (
+                          <span style={{ color: "green", fontWeight: "bold" }}>Active</span>
+                        ) : (
+                          <span style={{ color: "gray", fontWeight: "bold" }}>Inactive</span>
+                        )}
+                      </td>
+                      <td>
+                        {assignRoleUserId === u.id ? (
+                          <span style={{ display: "inline-flex", gap: "4px" }}>
+                            <select
+                              value={newRoleForUser}
+                              onChange={(e) => setNewRoleForUser(e.target.value)}
+                              style={{ padding: "2px" }}
+                            >
+                              {roles.map((r) => (
+                                <option key={r.id} value={r.name}>
+                                  {r.name}
+                                </option>
+                              ))}
+                            </select>
+                            <button
+                              className="btn-success btn-small"
+                              onClick={() => handleAssignRole(u.id)}
+                            >
+                              Save
+                            </button>
+                            <button
+                              className="btn-secondary btn-small"
+                              onClick={() => setAssignRoleUserId(null)}
+                            >
+                              X
+                            </button>
+                          </span>
+                        ) : (
+                          <button
+                            className="btn-secondary btn-small"
+                            onClick={() => {
+                              setAssignRoleUserId(u.id);
+                              setNewRoleForUser(u.role);
+                            }}
+                          >
+                            Change Role
+                          </button>
+                        )}
+
+                        <button
+                          className="btn-danger btn-small"
+                          onClick={() => handleDeleteUser(u.id)}
+                          disabled={u.email === currentUser?.email}
+                        >
+                          Delete
+                        </button>
+                      </td>
+                    </tr>
+                  ))
               )}
             </tbody>
           </table>
-        </div>
 
-        {/* Pagination */}
-        <Pagination
-          page={page}
-          pageSize={pageSize}
-          totalCount={users.length}
-          onPageChange={setPage}
-          onPageSizeChange={(newSize) => {
-            setPageSize(newSize);
-            setPage(1);
-          }}
-        />
-      </section>
-
-      {/* Roles Summary */}
-      <section className="panel" style={{ marginTop: "20px" }}>
-        <div className="panel-head">
-          <div>
-            <h2>Configured System Roles</h2>
-            <p>Access privileges defined in ASP.NET Core Identity</p>
-          </div>
-        </div>
-        <div className="roles-tags-list">
-          {roles.map((r) => (
-            <div key={r.id} className="role-tag-card">
-              <Shield size={16} />
-              <b>{r.name}</b>
-            </div>
-          ))}
-          {roles.length === 0 && (
-            <span className="text-muted">Standard roles: Admin, StoreManager, Pharmacist</span>
-          )}
-        </div>
-      </section>
-
-      {/* Create User Modal */}
-      {createUserModal && (
-        <div className="modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && setCreateUserModal(false)}>
-          <div className="record-modal">
-            <div className="modal-head">
-              <div>
-                <span className="eyebrow">NEW PERSONNEL</span>
-                <h2>Create Pharmacy User</h2>
-              </div>
-              <button className="icon-btn" onClick={() => setCreateUserModal(false)}>
-                <X size={18} />
-              </button>
-            </div>
-
-            <form onSubmit={handleCreateUser}>
-              <div className="form-grid">
-                <label className="form-field">
-                  <span>Full Name *</span>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. Dr. Haris Naveed"
-                    value={userForm.fullName}
-                    onChange={(e) => setUserForm({ ...userForm, fullName: e.target.value })}
-                  />
-                </label>
-
-                <label className="form-field">
-                  <span>Official Email *</span>
-                  <input
-                    type="email"
-                    required
-                    placeholder="e.g. haris@pharmacy.com"
-                    value={userForm.email}
-                    onChange={(e) => setUserForm({ ...userForm, email: e.target.value })}
-                  />
-                </label>
-
-                <label className="form-field">
-                  <span>Initial Password * (min 6 chars)</span>
-                  <input
-                    type="password"
-                    required
-                    minLength={6}
-                    placeholder="••••••••"
-                    value={userForm.password}
-                    onChange={(e) => setUserForm({ ...userForm, password: e.target.value })}
-                  />
-                </label>
-
-                <label className="form-field">
-                  <span>Contact Phone</span>
-                  <input
-                    type="text"
-                    placeholder="e.g. +92 300 1234567"
-                    value={userForm.phoneNumber}
-                    onChange={(e) => setUserForm({ ...userForm, phoneNumber: e.target.value })}
-                  />
-                </label>
-
-                <label className="form-field" style={{ gridColumn: "1 / -1" }}>
-                  <span>System Role *</span>
-                  <select
-                    required
-                    value={userForm.role}
-                    onChange={(e) => setUserForm({ ...userForm, role: e.target.value })}
-                  >
-                    <option value="Admin">Administrator (Full Control)</option>
-                    <option value="StoreManager">Store Manager (Inventory & Purchases)</option>
-                    <option value="Pharmacist">Pharmacist (Dispensation & Alerts)</option>
-                    {roles
-                      .filter((r) => !["Admin", "StoreManager", "Pharmacist"].includes(r.name))
-                      .map((r) => (
-                        <option key={r.id} value={r.name}>
-                          {r.name}
-                        </option>
-                      ))}
-                  </select>
-                </label>
-              </div>
-
-              <div className="modal-actions">
-                <button
-                  type="button"
-                  className="btn btn-light"
-                  onClick={() => setCreateUserModal(false)}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="btn btn-primary"
-                  disabled={saving}
-                >
-                  {saving ? "Creating..." : "Create User"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Assign Role Modal */}
-      {assignRoleModal && (
-        <div className="modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && setAssignRoleModal(null)}>
-          <div className="record-modal">
-            <div className="modal-head">
-              <div>
-                <span className="eyebrow">ACCESS PRIVILEGES</span>
-                <h2>Assign Role to {assignRoleModal.fullName || assignRoleModal.email}</h2>
-              </div>
-              <button className="icon-btn" onClick={() => setAssignRoleModal(null)}>
-                <X size={18} />
-              </button>
-            </div>
-
-            <form onSubmit={handleAssignRole}>
-              <div className="form-grid">
-                <label className="form-field" style={{ gridColumn: "1 / -1" }}>
-                  <span>Select New Role *</span>
-                  <select
-                    required
-                    value={selectedNewRole}
-                    onChange={(e) => setSelectedNewRole(e.target.value)}
-                  >
-                    <option value="Admin">Administrator</option>
-                    <option value="StoreManager">Store Manager</option>
-                    <option value="Pharmacist">Pharmacist</option>
-                    {roles
-                      .filter((r) => !["Admin", "StoreManager", "Pharmacist"].includes(r.name))
-                      .map((r) => (
-                        <option key={r.id} value={r.name}>
-                          {r.name}
-                        </option>
-                      ))}
-                  </select>
-                </label>
-              </div>
-
-              <div className="modal-actions">
-                <button
-                  type="button"
-                  className="btn btn-light"
-                  onClick={() => setAssignRoleModal(null)}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="btn btn-primary"
-                  disabled={saving}
-                >
-                  {saving ? "Assigning..." : "Update Role"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Create Role Modal */}
-      {createRoleModal && (
-        <div className="modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && setCreateRoleModal(false)}>
-          <div className="record-modal">
-            <div className="modal-head">
-              <div>
-                <span className="eyebrow">SECURITY ROLE</span>
-                <h2>Create Custom Role</h2>
-              </div>
-              <button className="icon-btn" onClick={() => setCreateRoleModal(false)}>
-                <X size={18} />
-              </button>
-            </div>
-
-            <form onSubmit={handleCreateRole}>
-              <div className="form-grid">
-                <label className="form-field" style={{ gridColumn: "1 / -1" }}>
-                  <span>Role Name *</span>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. Auditor"
-                    value={roleForm.roleName}
-                    onChange={(e) => setRoleForm({ roleName: e.target.value })}
-                  />
-                </label>
-              </div>
-
-              <div className="modal-actions">
-                <button
-                  type="button"
-                  className="btn btn-light"
-                  onClick={() => setCreateRoleModal(false)}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="btn btn-primary"
-                  disabled={saving}
-                >
-                  {saving ? "Saving..." : "Create Role"}
-                </button>
-              </div>
-            </form>
-          </div>
+          {/* Pagination */}
+          <Pagination
+            page={page}
+            pageSize={pageSize}
+            totalCount={filteredUsers.length}
+            onPageChange={(p) => setPage(p)}
+            onPageSizeChange={(sz) => {
+              setPageSize(sz);
+              setPage(1);
+            }}
+            pageSizeOptions={[5, 10, 25, 50]}
+          />
         </div>
       )}
     </div>

@@ -1,4 +1,4 @@
-﻿using PharmacyStockExpiryMonitor.Api.DTOs.Medicine;
+using PharmacyStockExpiryMonitor.Api.DTOs.Medicine;
 using PharmacyStockExpiryMonitor.Api.Entities;
 using PharmacyStockExpiryMonitor.Api.Repositories.Interfaces;
 using PharmacyStockExpiryMonitor.Api.Services.Interfaces;
@@ -62,7 +62,11 @@ namespace PharmacyStockExpiryMonitor.Api.Services
                 CategoryName = medicine.Category?.Name,
                 ReorderLevel = medicine.ReorderLevel,
                 CurrentStock = medicine.CurrentStock,
-                IsActive = medicine.IsActive
+                IsActive = medicine.IsActive,
+                CreatedAt = medicine.CreatedAt,
+                CreatedBy = medicine.CreatedBy,
+                UpdatedAt = medicine.UpdatedAt,
+                UpdatedBy = medicine.UpdatedBy
             }).ToList();
 
             return (items, totalCount);
@@ -86,7 +90,11 @@ namespace PharmacyStockExpiryMonitor.Api.Services
                 CategoryName = medicine.Category?.Name,
                 ReorderLevel = medicine.ReorderLevel,
                 CurrentStock = medicine.CurrentStock,
-                IsActive = medicine.IsActive
+                IsActive = medicine.IsActive,
+                CreatedAt = medicine.CreatedAt,
+                CreatedBy = medicine.CreatedBy,
+                UpdatedAt = medicine.UpdatedAt,
+                UpdatedBy = medicine.UpdatedBy
             };
         }
 
@@ -143,7 +151,11 @@ namespace PharmacyStockExpiryMonitor.Api.Services
                 CategoryName = createdMedicine.Category?.Name,
                 ReorderLevel = createdMedicine.ReorderLevel,
                 CurrentStock = createdMedicine.CurrentStock,
-                IsActive = createdMedicine.IsActive
+                IsActive = createdMedicine.IsActive,
+                CreatedAt = createdMedicine.CreatedAt,
+                CreatedBy = createdMedicine.CreatedBy,
+                UpdatedAt = createdMedicine.UpdatedAt,
+                UpdatedBy = createdMedicine.UpdatedBy
             };
         }
 
@@ -216,7 +228,11 @@ namespace PharmacyStockExpiryMonitor.Api.Services
                 CategoryName = medicine.Category?.Name,
                 ReorderLevel = medicine.ReorderLevel,
                 CurrentStock = medicine.CurrentStock,
-                IsActive = medicine.IsActive
+                IsActive = medicine.IsActive,
+                CreatedAt = medicine.CreatedAt,
+                CreatedBy = medicine.CreatedBy,
+                UpdatedAt = medicine.UpdatedAt,
+                UpdatedBy = medicine.UpdatedBy
             };
         }
 

@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using PharmacyStockExpiryMonitor.Api.DTOs.Supplier;
 using PharmacyStockExpiryMonitor.Api.Services.Interfaces;
+using System.Security.Claims;
 
 namespace PharmacyStockExpiryMonitor.Api.Controllers
 {
@@ -108,12 +109,14 @@ namespace PharmacyStockExpiryMonitor.Api.Controllers
             int id,
             UpdateSupplierDto dto)
         {
+            var username = User.FindFirstValue(ClaimTypes.Name) ?? "SYSTEM";
             try
             {
                 var supplier =
                     await _supplierService.UpdateAsync(
                         id,
-                        dto);
+                        dto,
+                        username);
 
                 if (supplier == null)
                 {

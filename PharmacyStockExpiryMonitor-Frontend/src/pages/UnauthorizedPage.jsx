@@ -1,51 +1,55 @@
 import React from "react";
-import { Link } from "react-router-dom";
-import { ShieldAlert, Home, ArrowLeft } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
 
 export default function UnauthorizedPage({ userRole = "Pharmacist" }) {
+  const navigate = useNavigate();
+
+  const formattedRole =
+    userRole === "StoreManager"
+      ? "Store Manager"
+      : userRole || "Pharmacist";
+
   return (
-    <div className="page-content" style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "70vh" }}>
-      <div className="panel" style={{ maxWidth: "500px", width: "100%", textAlign: "center", padding: "40px 28px" }}>
+    <div className="container" style={{ textAlign: "center", padding: "60px 20px" }}>
+      <div
+        className="panel"
+        style={{
+          maxWidth: "500px",
+          margin: "0 auto",
+          padding: "32px 24px",
+          textAlign: "center"
+        }}
+      >
+        <div style={{ fontSize: "52px", fontWeight: "800", color: "#dc2626", marginBottom: "6px" }}>
+          403
+        </div>
+        <h2 style={{ marginTop: 0, marginBottom: "8px", fontSize: "19px", color: "#dc2626" }}>
+          403 - Access Restricted / Unauthorized
+        </h2>
+        <p style={{ fontSize: "13px", color: "#64748b", marginBottom: "14px" }}>
+          You do not have administrative privileges to access User Management &amp; Roles.
+        </p>
         <div
           style={{
-            width: "60px",
-            height: "60px",
-            borderRadius: "10px",
-            backgroundColor: "#fee2e2",
-            color: "#dc2626",
-            display: "grid",
-            placeItems: "center",
-            margin: "0 auto 16px"
+            backgroundColor: "#fef2f2",
+            border: "1px solid #fecaca",
+            borderRadius: "6px",
+            padding: "12px",
+            marginBottom: "22px",
+            fontSize: "13px",
+            color: "#991b1b"
           }}
         >
-          <ShieldAlert size={30} />
+          Your current logged-in role is: <strong>{formattedRole}</strong>.<br />
+          Only users with the <strong>Admin</strong> role can view and manage user accounts and system permissions.
         </div>
-
-        <div style={{ fontSize: "11px", fontWeight: "700", color: "#dc2626", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "6px" }}>
-          Error 403 • Access Restricted
-        </div>
-
-        <h1 style={{ fontSize: "20px", fontWeight: "700", color: "#0f172a", margin: "0 0 8px" }}>
-          Authorization Required
-        </h1>
-
-        <p style={{ fontSize: "13px", color: "#64748b", margin: "0 0 16px", lineHeight: "1.5" }}>
-          You do not have administrative permissions to view or configure User & Security Role Governance. Your current active role is <b>{userRole}</b>.
-        </p>
-
-        <p style={{ fontSize: "12px", color: "#94a3b8", margin: "0 0 24px" }}>
-          If you require access to security governance, please consult your pharmacy system administrator.
-        </p>
 
         <div style={{ display: "flex", gap: "10px", justifyContent: "center" }}>
-          <button
-            className="btn btn-light"
-            onClick={() => window.history.back()}
-          >
-            <ArrowLeft size={14} /> Go Back
+          <button className="btn-secondary" onClick={() => navigate(-1)}>
+            &larr; Go Back
           </button>
-          <Link to="/" className="btn btn-primary" style={{ textDecoration: "none" }}>
-            <Home size={14} /> Return to Dashboard
+          <Link to="/" className="btn-primary" style={{ textDecoration: "none" }}>
+            Return to Dashboard
           </Link>
         </div>
       </div>

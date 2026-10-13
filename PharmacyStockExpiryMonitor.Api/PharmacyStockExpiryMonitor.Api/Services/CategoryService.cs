@@ -1,4 +1,4 @@
-﻿    
+    
 using PharmacyStockExpiryMonitor.Api.DTOs.Category;
 using PharmacyStockExpiryMonitor.Api.Entities;
 using PharmacyStockExpiryMonitor.Api.Repositories.Interfaces;
@@ -53,7 +53,11 @@ namespace PharmacyStockExpiryMonitor.Api.Services
                 Id = category.Id,
                 Name = category.Name,
                 Description = category.Description,
-                IsActive = category.IsActive
+                IsActive = category.IsActive,
+                CreatedAt = category.CreatedAt,
+                CreatedBy = category.CreatedBy,
+                UpdatedAt = category.UpdatedAt,
+                UpdatedBy = category.UpdatedBy
             }).ToList();
 
             return (items, totalCount);
@@ -71,7 +75,11 @@ namespace PharmacyStockExpiryMonitor.Api.Services
                 Id = category.Id,
                 Name = category.Name,
                 Description = category.Description,
-                IsActive = category.IsActive
+                IsActive = category.IsActive,
+                CreatedAt = category.CreatedAt,
+                CreatedBy = category.CreatedBy,
+                UpdatedAt = category.UpdatedAt,
+                UpdatedBy = category.UpdatedBy
             };
         }
 
@@ -119,7 +127,11 @@ namespace PharmacyStockExpiryMonitor.Api.Services
                 Id = createdCategory.Id,
                 Name = createdCategory.Name,
                 Description = createdCategory.Description,
-                IsActive = createdCategory.IsActive
+                IsActive = createdCategory.IsActive,
+                CreatedAt = createdCategory.CreatedAt,
+                CreatedBy = createdCategory.CreatedBy,
+                UpdatedAt = createdCategory.UpdatedAt,
+                UpdatedBy = createdCategory.UpdatedBy
             };
         }
 
@@ -177,7 +189,11 @@ namespace PharmacyStockExpiryMonitor.Api.Services
                 Id = category.Id,
                 Name = category.Name,
                 Description = category.Description,
-                IsActive = category.IsActive
+                IsActive = category.IsActive,
+                CreatedAt = category.CreatedAt,
+                CreatedBy = category.CreatedBy,
+                UpdatedAt = category.UpdatedAt,
+                UpdatedBy = category.UpdatedBy
             };
         }
 

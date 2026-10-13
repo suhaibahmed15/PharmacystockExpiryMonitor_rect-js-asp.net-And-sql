@@ -1,4 +1,4 @@
-﻿    namespace PharmacyStockExpiryMonitor.Api.DTOs.Purchase
+    namespace PharmacyStockExpiryMonitor.Api.DTOs.Purchase
     {
         public class PurchaseDto
         {
@@ -18,5 +18,13 @@
 
             public List<PurchaseItemDto> PurchaseItems { get; set; }
                 = new();
+
+            public DateTime CreatedAt { get; set; }
+
+            public string? CreatedBy { get; set; }
+
+            public DateTime? UpdatedAt { get; set; }
+
+            public string? UpdatedBy { get; set; }
         }
     }

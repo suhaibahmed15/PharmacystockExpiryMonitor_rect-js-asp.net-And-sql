@@ -1,9 +1,9 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 using PharmacyStockExpiryMonitor.Api.Enums;
 
 namespace PharmacyStockExpiryMonitor.Api.Entities;
 
-public class StockTransaction
+public class StockTransaction : IAuditableEntity
 {
     public int Id { get; set; }
 
@@ -30,10 +30,15 @@ public class StockTransaction
 
     public bool IsAdminOverride { get; set; }
 
-    [StringLength(450)]
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+    [StringLength(250)]
     public string? CreatedBy { get; set; }
 
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime? UpdatedAt { get; set; }
+
+    [StringLength(250)]
+    public string? UpdatedBy { get; set; }
 
     public Medicine? Medicine { get; set; }
 

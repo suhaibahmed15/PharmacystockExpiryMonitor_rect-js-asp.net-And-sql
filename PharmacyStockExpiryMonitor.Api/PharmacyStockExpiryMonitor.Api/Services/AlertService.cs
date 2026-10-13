@@ -1,4 +1,4 @@
-﻿using PharmacyStockExpiryMonitor.Api.DTOs.Alert;
+using PharmacyStockExpiryMonitor.Api.DTOs.Alert;
 using PharmacyStockExpiryMonitor.Api.Entities;
 using PharmacyStockExpiryMonitor.Api.Enums;
 using PharmacyStockExpiryMonitor.Api.Repositories.Interfaces;
@@ -29,7 +29,10 @@ namespace PharmacyStockExpiryMonitor.Api.Services
                 IsRead = alert.IsRead,
                 IsResolved = alert.IsResolved,
                 ResolvedAt = alert.ResolvedAt,
-                CreatedAt = alert.CreatedAt
+                CreatedAt = alert.CreatedAt,
+                CreatedBy = alert.CreatedBy,
+                UpdatedAt = alert.UpdatedAt,
+                UpdatedBy = alert.UpdatedBy
             }).ToList();
         }
 
@@ -50,7 +53,10 @@ namespace PharmacyStockExpiryMonitor.Api.Services
                 IsRead = alert.IsRead,
                 IsResolved = alert.IsResolved,
                 ResolvedAt = alert.ResolvedAt,
-                CreatedAt = alert.CreatedAt
+                CreatedAt = alert.CreatedAt,
+                CreatedBy = alert.CreatedBy,
+                UpdatedAt = alert.UpdatedAt,
+                UpdatedBy = alert.UpdatedBy
             };
         }
 
@@ -84,7 +90,10 @@ namespace PharmacyStockExpiryMonitor.Api.Services
                 IsRead = createdAlert.IsRead,
                 IsResolved = createdAlert.IsResolved,
                 ResolvedAt = createdAlert.ResolvedAt,
-                CreatedAt = createdAlert.CreatedAt
+                CreatedAt = createdAlert.CreatedAt,
+                CreatedBy = createdAlert.CreatedBy,
+                UpdatedAt = createdAlert.UpdatedAt,
+                UpdatedBy = createdAlert.UpdatedBy
             };
         }
 

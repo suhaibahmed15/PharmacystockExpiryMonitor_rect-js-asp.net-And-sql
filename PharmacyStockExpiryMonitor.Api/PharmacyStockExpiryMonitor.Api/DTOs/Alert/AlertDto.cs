@@ -1,4 +1,4 @@
-﻿using PharmacyStockExpiryMonitor.Api.Enums;
+using PharmacyStockExpiryMonitor.Api.Enums;
 
 namespace PharmacyStockExpiryMonitor.Api.DTOs.Alert
 {
@@ -21,5 +21,11 @@ namespace PharmacyStockExpiryMonitor.Api.DTOs.Alert
         public DateTime? ResolvedAt { get; set; }
 
         public DateTime CreatedAt { get; set; }
+
+        public string? CreatedBy { get; set; }
+
+        public DateTime? UpdatedAt { get; set; }
+
+        public string? UpdatedBy { get; set; }
     }
 }

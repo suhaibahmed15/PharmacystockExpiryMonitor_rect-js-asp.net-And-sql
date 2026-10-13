@@ -1,4 +1,4 @@
-﻿using PharmacyStockExpiryMonitor.Api.Enums;
+using PharmacyStockExpiryMonitor.Api.Enums;
 
 namespace PharmacyStockExpiryMonitor.Api.DTOs.StockTransaction
 {
@@ -23,5 +23,11 @@ namespace PharmacyStockExpiryMonitor.Api.DTOs.StockTransaction
         public bool IsAdminOverride { get; set; }
 
         public DateTime CreatedAt { get; set; }
+
+        public string? CreatedBy { get; set; }
+
+        public DateTime? UpdatedAt { get; set; }
+
+        public string? UpdatedBy { get; set; }
     }
 }

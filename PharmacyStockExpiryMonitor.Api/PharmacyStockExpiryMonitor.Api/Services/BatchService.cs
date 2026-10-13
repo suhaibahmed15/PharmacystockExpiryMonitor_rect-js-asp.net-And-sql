@@ -1,4 +1,4 @@
-﻿
+
 using PharmacyStockExpiryMonitor.Api.DTOs.Batch;
 using PharmacyStockExpiryMonitor.Api.Entities;
 using PharmacyStockExpiryMonitor.Api.Repositories.Interfaces;
@@ -33,7 +33,11 @@ namespace PharmacyStockExpiryMonitor.Api.Services
                 ExpiryDate = batch.ExpiryDate,
                 InitialQuantity = batch.InitialQuantity,
                 RemainingQuantity = batch.RemainingQuantity,
-                UnitCost = batch.UnitCost
+                UnitCost = batch.UnitCost,
+                CreatedAt = batch.CreatedAt,
+                CreatedBy = batch.CreatedBy,
+                UpdatedAt = batch.UpdatedAt,
+                UpdatedBy = batch.UpdatedBy
             }).ToList();
         }
 
@@ -54,7 +58,11 @@ namespace PharmacyStockExpiryMonitor.Api.Services
                 ExpiryDate = batch.ExpiryDate,
                 InitialQuantity = batch.InitialQuantity,
                 RemainingQuantity = batch.RemainingQuantity,
-                UnitCost = batch.UnitCost
+                UnitCost = batch.UnitCost,
+                CreatedAt = batch.CreatedAt,
+                CreatedBy = batch.CreatedBy,
+                UpdatedAt = batch.UpdatedAt,
+                UpdatedBy = batch.UpdatedBy
             };
         }
 
@@ -74,7 +82,11 @@ namespace PharmacyStockExpiryMonitor.Api.Services
                 ExpiryDate = batch.ExpiryDate,
                 InitialQuantity = batch.InitialQuantity,
                 RemainingQuantity = batch.RemainingQuantity,
-                UnitCost = batch.UnitCost
+                UnitCost = batch.UnitCost,
+                CreatedAt = batch.CreatedAt,
+                CreatedBy = batch.CreatedBy,
+                UpdatedAt = batch.UpdatedAt,
+                UpdatedBy = batch.UpdatedBy
             }).ToList();
         }
 
@@ -141,7 +153,11 @@ namespace PharmacyStockExpiryMonitor.Api.Services
                 ExpiryDate = createdBatch.ExpiryDate,
                 InitialQuantity = createdBatch.InitialQuantity,
                 RemainingQuantity = createdBatch.RemainingQuantity,
-                UnitCost = createdBatch.UnitCost
+                UnitCost = createdBatch.UnitCost,
+                CreatedAt = createdBatch.CreatedAt,
+                CreatedBy = createdBatch.CreatedBy,
+                UpdatedAt = createdBatch.UpdatedAt,
+                UpdatedBy = createdBatch.UpdatedBy
             };
         }
 
@@ -207,7 +223,11 @@ namespace PharmacyStockExpiryMonitor.Api.Services
                 ExpiryDate = batch.ExpiryDate,
                 InitialQuantity = batch.InitialQuantity,
                 RemainingQuantity = batch.RemainingQuantity,
-                UnitCost = batch.UnitCost
+                UnitCost = batch.UnitCost,
+                CreatedAt = batch.CreatedAt,
+                CreatedBy = batch.CreatedBy,
+                UpdatedAt = batch.UpdatedAt,
+                UpdatedBy = batch.UpdatedBy
             };
         }
 

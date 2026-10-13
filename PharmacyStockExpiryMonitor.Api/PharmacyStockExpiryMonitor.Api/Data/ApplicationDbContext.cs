@@ -1,15 +1,21 @@
-﻿using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using PharmacyStockExpiryMonitor.Api.Entities;
+using System.Security.Claims;
 
 namespace PharmacyStockExpiryMonitor.Api.Data
 {
     public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     {
+        private readonly IHttpContextAccessor? _httpContextAccessor;
+
         public ApplicationDbContext(
-            DbContextOptions<ApplicationDbContext> options)
+            DbContextOptions<ApplicationDbContext> options,
+            IHttpContextAccessor? httpContextAccessor = null)
             : base(options)
         {
+            _httpContextAccessor = httpContextAccessor;
         }
 
         public DbSet<Category> Categories { get; set; }
@@ -397,6 +403,83 @@ namespace PharmacyStockExpiryMonitor.Api.Data
                 .WithMany(x => x.AuditLogs)
                 .HasForeignKey(x => x.UserId)
                 .OnDelete(DeleteBehavior.SetNull);
+        }
+
+        public override async Task<int> SaveChangesAsync(
+            CancellationToken cancellationToken = default)
+        {
+            ApplyAuditInformation();
+            return await base.SaveChangesAsync(cancellationToken);
+        }
+
+        public override int SaveChanges()
+        {
+            ApplyAuditInformation();
+            return base.SaveChanges();
+        }
+
+        private void ApplyAuditInformation()
+        {
+            var currentUser = GetCurrentUserName();
+            var entries = ChangeTracker.Entries<IAuditableEntity>();
+
+            foreach (var entry in entries)
+            {
+                if (entry.State == EntityState.Added)
+                {
+                    if (entry.Entity.CreatedAt == default)
+                    {
+                        entry.Entity.CreatedAt = DateTime.UtcNow;
+                    }
+
+                    if (string.IsNullOrEmpty(entry.Entity.CreatedBy))
+                    {
+                        entry.Entity.CreatedBy = currentUser;
+                    }
+                }
+                else if (entry.State == EntityState.Modified)
+                {
+                    entry.Entity.UpdatedAt = DateTime.UtcNow;
+                    entry.Entity.UpdatedBy = currentUser;
+                }
+            }
+        }
+
+        private string GetCurrentUserName()
+        {
+            var user = _httpContextAccessor?.HttpContext?.User;
+
+            if (user == null || user.Identity?.IsAuthenticated != true)
+            {
+                return "System";
+            }
+
+            // Return only the role (e.g., Admin, Pharmacist, StoreManager)
+            var role = user.FindFirst(ClaimTypes.Role)?.Value;
+            if (!string.IsNullOrEmpty(role))
+            {
+                return role;
+            }
+
+            var email = user.FindFirst(ClaimTypes.Email)?.Value;
+            if (!string.IsNullOrEmpty(email))
+            {
+                return email;
+            }
+
+            var name = user.FindFirst(ClaimTypes.Name)?.Value;
+            if (!string.IsNullOrEmpty(name))
+            {
+                return name;
+            }
+
+            var id = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (!string.IsNullOrEmpty(id))
+            {
+                return id;
+            }
+
+            return "System";
         }
     }
 }

@@ -1,4 +1,4 @@
-﻿
+
 using PharmacyStockExpiryMonitor.Api.DTOs.Supplier;
 using PharmacyStockExpiryMonitor.Api.Entities;
 using PharmacyStockExpiryMonitor.Api.Repositories.Interfaces;
@@ -56,7 +56,11 @@ namespace PharmacyStockExpiryMonitor.Api.Services
                 Phone = supplier.Phone,
                 Email = supplier.Email,
                 Address = supplier.Address,
-                IsActive = supplier.IsActive
+                IsActive = supplier.IsActive,
+                CreatedAt = supplier.CreatedAt,
+                CreatedBy = supplier.CreatedBy,
+                UpdatedAt = supplier.UpdatedAt,
+                UpdatedBy = supplier.UpdatedBy
             }).ToList();
 
             return (items, totalCount);
@@ -77,7 +81,11 @@ namespace PharmacyStockExpiryMonitor.Api.Services
                 Phone = supplier.Phone,
                 Email = supplier.Email,
                 Address = supplier.Address,
-                IsActive = supplier.IsActive
+                IsActive = supplier.IsActive,
+                CreatedAt = supplier.CreatedAt,
+                CreatedBy = supplier.CreatedBy,
+                UpdatedAt = supplier.UpdatedAt,
+                UpdatedBy = supplier.UpdatedBy
             };
         }
 
@@ -134,78 +142,52 @@ namespace PharmacyStockExpiryMonitor.Api.Services
                 Phone = createdSupplier.Phone,
                 Email = createdSupplier.Email,
                 Address = createdSupplier.Address,
-                IsActive = createdSupplier.IsActive
+                IsActive = createdSupplier.IsActive,
+                CreatedAt = createdSupplier.CreatedAt,
+                CreatedBy = createdSupplier.CreatedBy,
+                UpdatedAt = createdSupplier.UpdatedAt,
+                UpdatedBy = createdSupplier.UpdatedBy
             };
         }
 
-        public async Task<SupplierDto?> UpdateAsync(
+        public async Task<bool> UpdateAsync(
             int id,
-            UpdateSupplierDto dto)
+            UpdateSupplierDto dto,
+            string UpdatedBy)
         {
             var supplier = await _repository.GetByIdAsync(id);
 
             if (supplier == null)
-                return null;
+                return false;
 
-            var supplierName = dto.Name.Trim();
-
-            var existingSupplier =
-                await _repository.GetByNameAsync(supplierName);
-
-            if (existingSupplier != null &&
-                existingSupplier.Id != id)
-            {
-                throw new InvalidOperationException(
-                    "Supplier already exists.");
-            }
-
-            var oldValues = new
-            {
-                supplier.Id,
-                supplier.Name,
-                supplier.ContactPerson,
-                supplier.Phone,
-                supplier.Email,
-                supplier.Address,
-                supplier.IsActive
-            };
-
-            supplier.Name = supplierName;
+            supplier.Name = dto.Name.Trim();
             supplier.ContactPerson = dto.ContactPerson?.Trim();
             supplier.Phone = dto.Phone?.Trim();
             supplier.Email = dto.Email?.Trim();
             supplier.Address = dto.Address?.Trim();
             supplier.IsActive = dto.IsActive;
             supplier.UpdatedAt = DateTime.UtcNow;
+            supplier.UpdatedBy = UpdatedBy;
 
             await _repository.UpdateAsync(supplier);
 
-            await _auditLogService.LogJsonAsync(
-                "UPDATE",
-                "Supplier",
-                supplier.Id.ToString(),
-                oldValues,
-                new
-                {
-                    supplier.Id,
-                    supplier.Name,
-                    supplier.ContactPerson,
-                    supplier.Phone,
-                    supplier.Email,
-                    supplier.Address,
-                    supplier.IsActive
-                });
+            //await _auditLogService.LogJsonAsync(
+            //    "UPDATE",
+            //    "Supplier",
+            //    supplier.Id.ToString(),
+            //    oldValues,
+            //    new
+            //    {
+            //        supplier.Id,
+            //        supplier.Name,
+            //        supplier.ContactPerson,
+            //        supplier.Phone,
+            //        supplier.Email,
+            //        supplier.Address,
+            //        supplier.IsActive
+            //    });
 
-            return new SupplierDto
-            {
-                Id = supplier.Id,
-                Name = supplier.Name,
-                ContactPerson = supplier.ContactPerson,
-                Phone = supplier.Phone,
-                Email = supplier.Email,
-                Address = supplier.Address,
-                IsActive = supplier.IsActive
-            };
+            return true;
         }
 
         public async Task<bool> DeleteAsync(int id)

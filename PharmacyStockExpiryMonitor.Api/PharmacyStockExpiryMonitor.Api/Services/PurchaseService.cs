@@ -1,4 +1,4 @@
-﻿using PharmacyStockExpiryMonitor.Api.DTOs.Purchase;
+using PharmacyStockExpiryMonitor.Api.DTOs.Purchase;
 using PharmacyStockExpiryMonitor.Api.Entities;
 using PharmacyStockExpiryMonitor.Api.Repositories.Interfaces;
 using PharmacyStockExpiryMonitor.Api.Services.Interfaces;
@@ -35,8 +35,11 @@ namespace PharmacyStockExpiryMonitor.Api.Services
                         Quantity = item.Quantity,
                         UnitPrice = item.UnitPrice
                     })
-                    .ToList()
-
+                    .ToList(),
+                CreatedAt = purchase.CreatedAt,
+                CreatedBy = purchase.CreatedBy,
+                UpdatedAt = purchase.UpdatedAt,
+                UpdatedBy = purchase.UpdatedBy
             }).ToList();
         }
 
@@ -158,7 +161,11 @@ namespace PharmacyStockExpiryMonitor.Api.Services
                         Quantity = item.Quantity,
                         UnitPrice = item.UnitPrice
                     })
-                    .ToList()
+                    .ToList(),
+                CreatedAt = purchase.CreatedAt,
+                CreatedBy = purchase.CreatedBy,
+                UpdatedAt = purchase.UpdatedAt,
+                UpdatedBy = purchase.UpdatedBy
             };
         }
     }
